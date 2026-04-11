@@ -177,6 +177,20 @@ export function FoodTracker({ compact = false }: FoodTrackerProps) {
       )}
 
       {showAddForm && <AddFoodForm onClose={() => setShowAddForm(false)} onAdded={refresh} />}
+
+      <div className="text-center pt-1">
+        <span className="text-[10px] text-muted-foreground/50">
+          Nutritional data provided by{" "}
+          <a
+            href="https://fdc.nal.usda.gov/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-muted-foreground/70"
+          >
+            USDA FoodData Central
+          </a>
+        </span>
+      </div>
     </div>
   );
 }
