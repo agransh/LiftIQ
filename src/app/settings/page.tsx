@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkoutStore } from "@/lib/store";
-import { getSettings, saveSettings, getUserProfile, saveUserProfile } from "@/lib/storage";
+import { getSettings, saveSettings, getUserProfile, saveUserProfile, fetchSettings, fetchUserProfile } from "@/lib/storage";
 import { UserProfile, Gender, ActivityLevel, WeightGoal } from "@/types";
 import { getActivityLabel, getGoalLabel, calculateRecommendedCalories } from "@/lib/calories";
 import { createClient } from "@/utils/supabase/client";
@@ -47,10 +47,7 @@ export default function SettingsPage() {
   const [profileUseRec, setProfileUseRec] = useState(true);
   const [profileCustomCal, setProfileCustomCal] = useState("");
 
-  useEffect(() => {
-    const stored = getSettings();
-    updateSettings(stored);
-    const p = getUserProfile();
+  const applyProfile = (p: UserProfile | null) => {
     setProfile(p);
     if (p) {
       setProfileName(p.name);
@@ -65,7 +62,19 @@ export default function SettingsPage() {
       setProfileUseRec(p.useRecommendedCalories ?? true);
       setProfileCustomCal(p.calorieGoal?.toString() || "");
     }
-  }, [updateSettings]);
+  };
+
+  useEffect(() => {
+    updateSettings(getSettings());
+    applyProfile(getUserProfile());
+    // Fetch from Supabase
+    (async () => {
+      const [s, p] = await Promise.all([fetchSettings(), fetchUserProfile()]);
+      updateSettings(s);
+      applyProfile(p);
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSave = () => {
     saveSettings(settings);
