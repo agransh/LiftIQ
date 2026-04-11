@@ -176,7 +176,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         "webcam-container relative bg-black overflow-hidden",
         mobile
           ? "w-full h-full rounded-none border-0"
-          : "aspect-video rounded-xl border border-border/50 glow-green"
+          : "aspect-video rounded-2xl"
       )}
     >
       <video

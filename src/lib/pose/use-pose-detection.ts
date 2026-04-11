@@ -3,6 +3,7 @@
 import { useRef, useCallback, useEffect, useState } from "react";
 import { Landmark, PoseDetectionStatus } from "@/types";
 import { SKELETON_CONNECTIONS } from "./angle-utils";
+import "@/lib/pose/mediapipe-console-filter";
 
 interface UsePoseDetectionOptions {
   onFrame?: (landmarks: Landmark[]) => void;
@@ -67,18 +68,25 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
       );
 
-      const poseLandmarker = await PoseLandmarker.createFromOptions(wasmFiles, {
-        baseOptions: {
-          modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-          delegate: "CPU",
-        },
-        runningMode: "VIDEO",
+      const modelAssetPath =
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+
+      const baseOpts = (delegate: "GPU" | "CPU") => ({
+        baseOptions: { modelAssetPath, delegate },
+        runningMode: "VIDEO" as const,
         numPoses: 1,
       });
 
+      // Prefer GPU (WebGL): avoids TFLite XNNPACK CPU delegate on many setups.
+      let poseLandmarker: Awaited<ReturnType<typeof PoseLandmarker.createFromOptions>> | null =
+        null;
+      try {
+        poseLandmarker = await PoseLandmarker.createFromOptions(wasmFiles, baseOpts("GPU"));
+      } catch {
+        poseLandmarker = await PoseLandmarker.createFromOptions(wasmFiles, baseOpts("CPU"));
+      }
+
       poseLandmarkerRef.current = poseLandmarker;
-      modelReadyRef.current = true;
       lastTimestampRef.current = performance.now();
       setStatus("ready");
       return true;
@@ -173,7 +181,7 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
 
     try {
       const result = poseLandmarker.detectForVideo(video, now);
-      if (result.landmarks && result.landmarks.length > 0) {
+      if (result?.landmarks && result.landmarks.length > 0) {
         const lms: Landmark[] = result.landmarks[0].map((l: any) => ({
           x: l.x,
           y: l.y,
@@ -184,8 +192,11 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
         setStatus("detecting");
         onFrameRef.current?.(lms);
       }
-    } catch {
-      // Frame processing error — continue to next frame
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      if (msg.includes("XNNPACK") || msg.includes("delegate")) {
+        // Delegate init artefact — safe to ignore
+      }
     }
 
     animFrameRef.current = requestAnimationFrame(detect);
@@ -201,6 +212,8 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
       if (!cameraOk || !mounted) return;
       const poseOk = await initPoseDetection();
       if (!poseOk || !mounted) return;
+
+      modelReadyRef.current = true;
       animFrameRef.current = requestAnimationFrame(detect);
     }
 

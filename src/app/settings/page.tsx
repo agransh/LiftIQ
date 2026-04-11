@@ -2,30 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import { Navbar } from "@/components/layout/navbar";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useWorkoutStore } from "@/lib/store";
-import { getSettings, saveSettings, getUserProfile, saveUserProfile, fetchSettings, fetchUserProfile } from "@/lib/storage";
+import { getSettings, saveSettings, getUserProfile, saveUserProfile } from "@/lib/storage";
 import { UserProfile, Gender, ActivityLevel, WeightGoal } from "@/types";
 import { getActivityLabel, getGoalLabel, calculateRecommendedCalories } from "@/lib/calories";
 import { createClient } from "@/utils/supabase/client";
-import {
-  Settings,
-  Volume2,
-  VolumeX,
-  Camera,
-  Gauge,
-  Info,
-  CheckCircle2,
-  Shield,
-  Monitor,
-  User,
-  Pencil,
-  LogOut,
-  Flame,
-} from "lucide-react";
+import { Volume2, VolumeX, Camera, Gauge, Info, CheckCircle2, Shield, Monitor, User, Pencil, LogOut, Flame } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function SettingsPage() {
@@ -33,384 +20,136 @@ export default function SettingsPage() {
   const { settings, updateSettings, setUserProfile } = useWorkoutStore();
   const [saved, setSaved] = useState(false);
   const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [editingProfile, setEditingProfile] = useState(false);
+  const [editing, setEditing] = useState(false);
 
-  const [profileName, setProfileName] = useState("");
-  const [profileAge, setProfileAge] = useState("");
-  const [profileWeight, setProfileWeight] = useState("");
-  const [profileHeightFt, setProfileHeightFt] = useState("");
-  const [profileHeightIn, setProfileHeightIn] = useState("");
-  const [profileGender, setProfileGender] = useState<Gender>("male");
-  const [profileActivity, setProfileActivity] = useState<ActivityLevel>("moderate");
-  const [profileDisabilities, setProfileDisabilities] = useState("");
-  const [profileGoal, setProfileGoal] = useState<WeightGoal>("maintain");
-  const [profileUseRec, setProfileUseRec] = useState(true);
-  const [profileCustomCal, setProfileCustomCal] = useState("");
-
-  const applyProfile = (p: UserProfile | null) => {
-    setProfile(p);
-    if (p) {
-      setProfileName(p.name);
-      setProfileAge(p.age.toString());
-      setProfileWeight(p.weight.toString());
-      setProfileHeightFt(Math.floor(p.height / 12).toString());
-      setProfileHeightIn((p.height % 12).toString());
-      setProfileGender(p.gender || "male");
-      setProfileActivity(p.activityLevel || "moderate");
-      setProfileDisabilities(p.disabilities);
-      setProfileGoal(p.weightGoal || "maintain");
-      setProfileUseRec(p.useRecommendedCalories ?? true);
-      setProfileCustomCal(p.calorieGoal?.toString() || "");
-    }
-  };
+  const [pName, setPName] = useState(""); const [pAge, setPAge] = useState(""); const [pWeight, setPWeight] = useState("");
+  const [pHFt, setPHFt] = useState(""); const [pHIn, setPHIn] = useState(""); const [pGender, setPGender] = useState<Gender>("male");
+  const [pActivity, setPActivity] = useState<ActivityLevel>("moderate"); const [pDisabilities, setPDisabilities] = useState("");
+  const [pGoal, setPGoal] = useState<WeightGoal>("maintain"); const [pUseRec, setPUseRec] = useState(true); const [pCustCal, setPCustCal] = useState("");
 
   useEffect(() => {
-    updateSettings(getSettings());
-    applyProfile(getUserProfile());
-    // Fetch from Supabase
-    (async () => {
-      const [s, p] = await Promise.all([fetchSettings(), fetchUserProfile()]);
-      updateSettings(s);
-      applyProfile(p);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const s = getSettings(); updateSettings(s); const p = getUserProfile(); setProfile(p);
+    if (p) { setPName(p.name); setPAge(p.age.toString()); setPWeight(p.weight.toString()); setPHFt(Math.floor(p.height / 12).toString()); setPHIn((p.height % 12).toString()); setPGender(p.gender || "male"); setPActivity(p.activityLevel || "moderate"); setPDisabilities(p.disabilities); setPGoal(p.weightGoal || "maintain"); setPUseRec(p.useRecommendedCalories ?? true); setPCustCal(p.calorieGoal?.toString() || ""); }
+  }, [updateSettings]);
 
-  const handleSave = () => {
-    saveSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
-  };
+  const handleSave = () => { saveSettings(settings); setSaved(true); setTimeout(() => setSaved(false), 2000); };
 
   const handleSaveProfile = () => {
-    const totalInches = (parseInt(profileHeightFt) || 0) * 12 + (parseInt(profileHeightIn) || 0);
-    const rec = calculateRecommendedCalories(
-      parseFloat(profileWeight) || 160, totalInches || 68,
-      parseInt(profileAge) || 25, profileGender, profileActivity, profileGoal
-    );
-    const updatedProfile: UserProfile = {
-      name: profileName.trim(),
-      age: parseInt(profileAge) || 0,
-      weight: parseFloat(profileWeight) || 0,
-      height: totalInches,
-      gender: profileGender,
-      activityLevel: profileActivity,
-      disabilities: profileDisabilities.trim(),
-      weightGoal: profileGoal,
-      calorieGoal: profileUseRec ? rec : (parseInt(profileCustomCal) || rec),
-      useRecommendedCalories: profileUseRec,
-      hasCompletedOnboarding: true,
-      createdAt: profile?.createdAt || Date.now(),
-    };
-    saveUserProfile(updatedProfile);
-    setProfile(updatedProfile);
-    setUserProfile(updatedProfile);
-    setEditingProfile(false);
+    const ti = (parseInt(pHFt) || 0) * 12 + (parseInt(pHIn) || 0);
+    const rc = calculateRecommendedCalories(parseFloat(pWeight) || 160, ti || 68, parseInt(pAge) || 25, pGender, pActivity, pGoal);
+    const up: UserProfile = { name: pName.trim(), age: parseInt(pAge) || 0, weight: parseFloat(pWeight) || 0, height: ti, gender: pGender, activityLevel: pActivity, disabilities: pDisabilities.trim(), weightGoal: pGoal, calorieGoal: pUseRec ? rc : (parseInt(pCustCal) || rc), useRecommendedCalories: pUseRec, hasCompletedOnboarding: true, createdAt: profile?.createdAt || Date.now() };
+    saveUserProfile(up); setProfile(up); setUserProfile(up); setEditing(false);
   };
 
-  const handleLogout = async () => {
-    const supabase = createClient();
-    await supabase.auth.signOut();
-    router.push("/login");
-    router.refresh();
-  };
+  const handleLogout = async () => { const sb = createClient(); await sb.auth.signOut(); router.push("/login"); router.refresh(); };
+  const fmtH = (i: number) => `${Math.floor(i / 12)}'${i % 12}"`;
 
-  const formatHeight = (inches: number) => {
-    const ft = Math.floor(inches / 12);
-    const inc = inches % 12;
-    return `${ft}'${inc}"`;
-  };
-
-  const inputClass = "w-full h-10 rounded-lg bg-secondary border border-border px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50";
+  const inp = "w-full h-11 rounded-xl bg-white/[0.03] border border-white/[0.06] px-4 text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-colors";
+  const seg = "rounded-xl py-2.5 text-xs font-semibold border transition-all min-h-[44px]";
+  const segA = "bg-cyan-500/10 text-cyan-300 border-cyan-500/15";
+  const segI = "bg-white/[0.02] text-zinc-500 border-white/[0.06] hover:bg-white/[0.04]";
 
   return (
-    <div className="min-h-[100dvh] bg-background has-bottom-nav md:pb-0">
+    <div className="min-h-[100dvh] has-bottom-nav md:pb-0">
       <Navbar />
+      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-6 md:py-10 pb-28 md:pb-10">
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="mb-10">
+          <h1 className="text-4xl md:text-5xl font-black tracking-[-0.04em]">Settings</h1>
+          <p className="text-zinc-500 mt-2">Profile & Preferences</p>
+        </motion.div>
 
-      <div className="mx-auto max-w-3xl px-4 sm:px-6 py-4 md:py-6">
-        <div className="mb-4 md:mb-6">
-          <h1 className="text-xl md:text-2xl font-bold flex items-center gap-2">
-            <Settings className="h-5 w-5 md:h-6 md:w-6 text-primary" />
-            Settings
-          </h1>
-          <p className="text-xs md:text-sm text-muted-foreground mt-1">
-            Profile and preferences
-          </p>
-        </div>
-
-        <div className="space-y-4 md:space-y-6">
-          {/* User Profile */}
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader className="px-4 pt-4 pb-2 md:px-6 md:pt-6 flex flex-row items-start justify-between">
-              <div>
-                <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" />
-                  Profile
-                </CardTitle>
-                <CardDescription className="text-xs md:text-sm">
-                  Your personal information &amp; goals
-                </CardDescription>
-              </div>
-              {profile && !editingProfile && (
-                <Button variant="ghost" size="sm" onClick={() => setEditingProfile(true)} className="min-h-[36px]">
-                  <Pencil className="h-3.5 w-3.5" />
-                  Edit
-                </Button>
-              )}
-            </CardHeader>
-            <CardContent className="px-4 md:px-6">
-              {!editingProfile && profile ? (
+        <div className="space-y-5">
+          {/* Profile */}
+          <GlassCard className="overflow-hidden">
+            <div className="px-5 pt-5 pb-3 flex items-start justify-between">
+              <div><h3 className="text-base font-bold flex items-center gap-2 text-zinc-200"><User className="h-4 w-4 text-cyan-400" />Profile</h3><p className="text-xs text-zinc-600 mt-0.5">Your personal info & goals</p></div>
+              {profile && !editing && <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="border-white/[0.08] bg-white/[0.02]"><Pencil className="h-3.5 w-3.5" />Edit</Button>}
+            </div>
+            <div className="px-5 pb-5">
+              {!editing && profile ? (
                 <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <ProfileField label="Name" value={profile.name} />
-                    <ProfileField label="Age" value={profile.age.toString()} />
-                    <ProfileField label="Weight" value={`${profile.weight} lbs`} />
-                    <ProfileField label="Height" value={formatHeight(profile.height)} />
-                    <ProfileField label="Gender" value={(profile.gender || "—").charAt(0).toUpperCase() + (profile.gender || "").slice(1)} />
-                    <ProfileField label="Activity" value={profile.activityLevel ? getActivityLabel(profile.activityLevel).split("(")[0].trim() : "—"} />
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <PF label="Name" value={profile.name} /><PF label="Age" value={profile.age.toString()} />
+                    <PF label="Weight" value={`${profile.weight} lbs`} /><PF label="Height" value={fmtH(profile.height)} />
+                    <PF label="Gender" value={(profile.gender || "—").charAt(0).toUpperCase() + (profile.gender || "").slice(1)} />
+                    <PF label="Activity" value={profile.activityLevel ? getActivityLabel(profile.activityLevel).split("(")[0].trim() : "—"} />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <ProfileField label="Goal" value={profile.weightGoal ? getGoalLabel(profile.weightGoal) : "—"} />
-                    <div className="rounded-lg bg-primary/5 border border-primary/10 px-3 py-2.5">
-                      <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                        <Flame className="h-2.5 w-2.5 text-orange-400" />
-                        Calorie Goal
-                      </div>
-                      <div className="text-sm font-medium text-primary">{profile.calorieGoal || "—"} cal</div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <PF label="Goal" value={profile.weightGoal ? getGoalLabel(profile.weightGoal) : "—"} />
+                    <div className="glass-card rounded-xl border-cyan-500/10 px-4 py-3"><div className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1 flex items-center gap-1"><Flame className="h-3 w-3 text-cyan-400" />Calorie Goal</div><div className="text-base font-bold tabular-nums text-cyan-400">{profile.calorieGoal || "—"} cal</div></div>
                   </div>
-                  {profile.disabilities && profile.disabilities.toLowerCase() !== "none" && (
-                    <ProfileField label="Conditions" value={profile.disabilities} fullWidth />
-                  )}
+                  {profile.disabilities && profile.disabilities.toLowerCase() !== "none" && <PF label="Conditions" value={profile.disabilities} fw />}
                 </div>
-              ) : editingProfile ? (
-                <div className="space-y-3">
+              ) : editing ? (
+                <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-[10px] text-muted-foreground mb-1 block">Name</label>
-                      <input type="text" value={profileName} onChange={(e) => setProfileName(e.target.value)} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground mb-1 block">Age</label>
-                      <input type="number" value={profileAge} onChange={(e) => setProfileAge(e.target.value)} min="13" max="100" className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground mb-1 block">Weight (lbs)</label>
-                      <input type="number" value={profileWeight} onChange={(e) => setProfileWeight(e.target.value)} min="50" className={inputClass} />
-                    </div>
-                    <div>
-                      <label className="text-[10px] text-muted-foreground mb-1 block">Height</label>
-                      <div className="flex gap-2">
-                        <input type="number" value={profileHeightFt} onChange={(e) => setProfileHeightFt(e.target.value)} placeholder="ft" min="3" max="8" className={inputClass} />
-                        <input type="number" value={profileHeightIn} onChange={(e) => setProfileHeightIn(e.target.value)} placeholder="in" min="0" max="11" className={inputClass} />
-                      </div>
-                    </div>
+                    <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Name</label><input type="text" value={pName} onChange={e => setPName(e.target.value)} className={inp} /></div>
+                    <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Age</label><input type="number" value={pAge} onChange={e => setPAge(e.target.value)} className={inp} /></div>
+                    <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Weight (lbs)</label><input type="number" value={pWeight} onChange={e => setPWeight(e.target.value)} className={inp} /></div>
+                    <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Height</label><div className="flex gap-2"><input type="number" value={pHFt} onChange={e => setPHFt(e.target.value)} placeholder="ft" className={inp} /><input type="number" value={pHIn} onChange={e => setPHIn(e.target.value)} placeholder="in" className={inp} /></div></div>
                   </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground mb-1 block">Gender</label>
-                    <div className="flex gap-2">
-                      {(["male", "female", "other"] as Gender[]).map((g) => (
-                        <button key={g} onClick={() => setProfileGender(g)}
-                          className={cn("flex-1 rounded-lg py-2 text-xs font-medium border transition-colors",
-                            profileGender === g ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary/50 text-muted-foreground border-transparent")}>
-                          {g.charAt(0).toUpperCase() + g.slice(1)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground mb-1 block">Activity Level</label>
-                    <div className="space-y-1">
-                      {(["sedentary", "light", "moderate", "active", "very_active"] as ActivityLevel[]).map((level) => (
-                        <button key={level} onClick={() => setProfileActivity(level)}
-                          className={cn("w-full rounded-lg px-3 py-2 text-left text-xs border transition-colors",
-                            profileActivity === level ? "bg-primary/10 text-primary border-primary/30 font-medium" : "bg-secondary/20 text-muted-foreground border-transparent")}>
-                          {getActivityLabel(level)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground mb-1 block">Weight Goal</label>
-                    <div className="flex gap-2">
-                      {(["lose", "maintain", "gain"] as WeightGoal[]).map((g) => (
-                        <button key={g} onClick={() => setProfileGoal(g)}
-                          className={cn("flex-1 rounded-lg py-2 text-xs font-medium border transition-colors",
-                            profileGoal === g ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary/50 text-muted-foreground border-transparent")}>
-                          {getGoalLabel(g)}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground mb-1 block">Calorie Goal</label>
-                    <div className="flex gap-2">
-                      <button onClick={() => setProfileUseRec(true)}
-                        className={cn("flex-1 rounded-lg py-2 text-xs font-medium border transition-colors",
-                          profileUseRec ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary/50 text-muted-foreground border-transparent")}>
-                        Recommended
-                      </button>
-                      <button onClick={() => setProfileUseRec(false)}
-                        className={cn("flex-1 rounded-lg py-2 text-xs font-medium border transition-colors",
-                          !profileUseRec ? "bg-primary/10 text-primary border-primary/30" : "bg-secondary/50 text-muted-foreground border-transparent")}>
-                        Custom
-                      </button>
-                    </div>
-                    {!profileUseRec && (
-                      <input type="number" value={profileCustomCal} onChange={(e) => setProfileCustomCal(e.target.value)} placeholder="e.g. 2000" min="800" className={cn(inputClass, "mt-2")} />
-                    )}
-                  </div>
-                  <div>
-                    <label className="text-[10px] text-muted-foreground mb-1 block">Conditions</label>
-                    <input type="text" value={profileDisabilities} onChange={(e) => setProfileDisabilities(e.target.value)} placeholder="none" className={inputClass} />
-                  </div>
+                  <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Gender</label><div className="flex gap-2">{(["male","female","other"] as Gender[]).map(g => <button key={g} onClick={() => setPGender(g)} className={cn("flex-1",seg,pGender===g?segA:segI)}>{g.charAt(0).toUpperCase()+g.slice(1)}</button>)}</div></div>
+                  <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Activity Level</label><div className="space-y-1.5">{(["sedentary","light","moderate","active","very_active"] as ActivityLevel[]).map(l => <button key={l} onClick={() => setPActivity(l)} className={cn("w-full rounded-xl px-4 py-2.5 text-left text-xs border transition-all min-h-[44px]",pActivity===l?`${segA} font-medium`:segI)}>{getActivityLabel(l)}</button>)}</div></div>
+                  <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Weight Goal</label><div className="flex gap-2">{(["lose","maintain","gain"] as WeightGoal[]).map(g => <button key={g} onClick={() => setPGoal(g)} className={cn("flex-1",seg,pGoal===g?segA:segI)}>{getGoalLabel(g)}</button>)}</div></div>
+                  <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Calorie Goal</label><div className="flex gap-2"><button onClick={() => setPUseRec(true)} className={cn("flex-1",seg,pUseRec?segA:segI)}>Recommended</button><button onClick={() => setPUseRec(false)} className={cn("flex-1",seg,!pUseRec?segA:segI)}>Custom</button></div>{!pUseRec && <input type="number" value={pCustCal} onChange={e => setPCustCal(e.target.value)} placeholder="e.g. 2000" className={cn(inp,"mt-2")} />}</div>
+                  <div><label className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1.5 block">Conditions</label><input type="text" value={pDisabilities} onChange={e => setPDisabilities(e.target.value)} placeholder="none" className={inp} /></div>
                   <div className="flex gap-2 pt-1">
-                    <Button size="sm" onClick={handleSaveProfile} className="min-h-[40px]">Save Profile</Button>
-                    <Button size="sm" variant="outline" onClick={() => setEditingProfile(false)} className="min-h-[40px]">Cancel</Button>
+                    <button onClick={handleSaveProfile} className="min-h-[44px] flex-1 rounded-xl font-bold bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-400 text-white hover:brightness-110 transition-all">Save Profile</button>
+                    <Button variant="outline" size="sm" onClick={() => setEditing(false)} className="min-h-[44px] flex-1 rounded-xl border-white/[0.08] bg-white/[0.02]">Cancel</Button>
                   </div>
                 </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No profile set up yet. Complete onboarding to get started.</p>
-              )}
-            </CardContent>
-          </Card>
+              ) : <p className="text-sm text-zinc-600">No profile yet. Complete onboarding to get started.</p>}
+            </div>
+          </GlassCard>
 
           {/* Voice Coach */}
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader className="px-4 pt-4 pb-2 md:px-6 md:pt-6">
-              <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                {settings.voiceEnabled ? (
-                  <Volume2 className="h-4 w-4 text-primary" />
-                ) : (
-                  <VolumeX className="h-4 w-4 text-muted-foreground" />
-                )}
-                Voice Coach
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                Enable spoken coaching cues during workouts
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 md:px-6">
-              <div className="flex items-center gap-4">
-                <button
-                  onClick={() => updateSettings({ voiceEnabled: !settings.voiceEnabled })}
-                  className={cn(
-                    "relative inline-flex h-7 w-12 items-center rounded-full transition-colors min-h-[44px] min-w-[48px]",
-                    settings.voiceEnabled ? "bg-primary" : "bg-secondary"
-                  )}
-                >
-                  <span className={cn(
-                    "inline-block h-5 w-5 transform rounded-full bg-white transition-transform",
-                    settings.voiceEnabled ? "translate-x-6" : "translate-x-1"
-                  )} />
-                </button>
-                <span className="text-sm">
-                  {settings.voiceEnabled ? "Enabled" : "Disabled"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 mb-1">{settings.voiceEnabled ? <Volume2 className="h-4 w-4 text-cyan-400" /> : <VolumeX className="h-4 w-4 text-zinc-600" />}<h3 className="text-base font-bold text-zinc-200">Voice Coach</h3></div>
+            <p className="text-xs text-zinc-600 mb-4">Spoken coaching cues during workouts</p>
+            <div className="flex items-center justify-between gap-4 glass-card rounded-xl px-4 py-3">
+              <span className="text-sm font-medium text-zinc-300">{settings.voiceEnabled ? "Enabled" : "Disabled"}</span>
+              <button type="button" onClick={() => updateSettings({ voiceEnabled: !settings.voiceEnabled })} className={cn("relative inline-flex h-7 w-12 items-center rounded-full transition-all min-h-[28px] min-w-[48px]", settings.voiceEnabled ? "bg-cyan-500 shadow-[0_0_16px_-4px_rgba(6,182,212,0.5)]" : "bg-white/[0.08]")} aria-pressed={settings.voiceEnabled}>
+                <span className={cn("inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform", settings.voiceEnabled ? "translate-x-6" : "translate-x-1")} />
+              </button>
+            </div>
+          </GlassCard>
 
           {/* Sensitivity */}
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader className="px-4 pt-4 pb-2 md:px-6 md:pt-6">
-              <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                <Gauge className="h-4 w-4 text-primary" />
-                Detection Sensitivity
-              </CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                Higher sensitivity flags more form issues
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="px-4 md:px-6">
-              <div className="flex gap-2 md:gap-3">
-                {(["low", "medium", "high"] as const).map((level) => (
-                  <button key={level} onClick={() => updateSettings({ sensitivity: level })}
-                    className={cn(
-                      "flex-1 rounded-lg px-3 py-3 md:px-4 md:py-2.5 text-sm font-medium transition-all border min-h-[44px]",
-                      settings.sensitivity === level
-                        ? "bg-primary/10 text-primary border-primary/30"
-                        : "bg-secondary/50 text-muted-foreground border-transparent hover:bg-secondary active:bg-secondary"
-                    )}>
-                    {level.charAt(0).toUpperCase() + level.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 mb-1"><Gauge className="h-4 w-4 text-cyan-400" /><h3 className="text-base font-bold text-zinc-200">Detection Sensitivity</h3></div>
+            <p className="text-xs text-zinc-600 mb-4">Higher sensitivity flags more form issues</p>
+            <div className="grid grid-cols-3 gap-2 glass-card rounded-xl p-1.5">
+              {(["low","medium","high"] as const).map(l => <button key={l} onClick={() => updateSettings({ sensitivity: l })} className={cn("rounded-lg px-3 py-2.5 text-sm font-semibold transition-all min-h-[40px]", settings.sensitivity === l ? "bg-cyan-500/10 text-cyan-300" : "text-zinc-500 hover:text-zinc-300")}>{l.charAt(0).toUpperCase()+l.slice(1)}</button>)}
+            </div>
+          </GlassCard>
 
-          {/* Camera Help */}
-          <Card className="bg-card/50 border-border/50">
-            <CardHeader className="px-4 pt-4 pb-2 md:px-6 md:pt-6">
-              <CardTitle className="text-sm md:text-base flex items-center gap-2">
-                <Camera className="h-4 w-4 text-primary" />
-                Camera Setup
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 md:px-6">
-              <div className="space-y-2.5">
-                {[
-                  { icon: Monitor, text: "Position camera so your full body is visible" },
-                  { icon: Shield, text: "Ensure good lighting — avoid backlight" },
-                  { icon: Camera, text: "Stand 6-10 feet from the camera" },
-                  { icon: Info, text: "Wear form-fitting clothes for accuracy" },
-                  { icon: CheckCircle2, text: "Keep background uncluttered" },
-                ].map(({ icon: Icon, text }) => (
-                  <div key={text} className="flex items-start gap-3 text-xs md:text-sm">
-                    <Icon className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                    <span className="text-muted-foreground">{text}</span>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          {/* Camera */}
+          <GlassCard className="p-5">
+            <div className="flex items-center gap-2 mb-4"><Camera className="h-4 w-4 text-cyan-400" /><h3 className="text-base font-bold text-zinc-200">Camera Setup</h3></div>
+            <div className="space-y-2">{[{ icon: Monitor, text: "Position camera so your full body is visible" }, { icon: Shield, text: "Ensure good lighting — avoid backlight" }, { icon: Camera, text: "Stand 6-10 feet from the camera" }, { icon: Info, text: "Wear form-fitting clothes for accuracy" }, { icon: CheckCircle2, text: "Keep background uncluttered" }].map(({ icon: I, text }) => (
+              <div key={text} className="flex items-start gap-3 glass-card rounded-xl px-3.5 py-2.5"><I className="h-4 w-4 text-cyan-400 mt-0.5 shrink-0" /><span className="text-xs text-zinc-400">{text}</span></div>
+            ))}</div>
+          </GlassCard>
 
-          {/* Data disclaimer */}
-          <Card className="bg-card/50 border-border/50">
-            <CardContent className="pt-4 pb-4 md:pt-6">
-              <div className="flex items-start gap-3">
-                <Shield className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                <div className="text-xs text-muted-foreground space-y-1">
-                  <p className="text-foreground font-medium text-sm">Data Privacy</p>
-                  <p>Your profile, workout history, and food logs are stored locally on this device. Account credentials are handled securely by Supabase.</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Privacy */}
+          <GlassCard className="p-5">
+            <div className="flex items-start gap-3"><Shield className="h-5 w-5 text-cyan-400 mt-0.5 shrink-0" /><div><div className="flex items-center gap-2 mb-1.5"><p className="text-sm font-bold text-zinc-200">Data Privacy</p><Badge variant="outline" className="text-[10px] text-zinc-500">Local-first</Badge></div><p className="text-xs text-zinc-500 leading-relaxed">Your profile, workout history, and food logs are stored locally. Account credentials are handled securely by Supabase.</p></div></div>
+          </GlassCard>
 
-          {/* Save + Logout */}
-          <div className="flex items-center gap-3 pb-4">
-            <Button onClick={handleSave} size="lg" className="flex-1 md:flex-none min-h-[48px]">
-              {saved ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Saved!
-                </>
-              ) : (
-                "Save Settings"
-              )}
-            </Button>
-            <Button onClick={handleLogout} variant="outline" size="lg" className="min-h-[48px]">
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 pb-2">
+            <button onClick={handleSave} className="w-full sm:flex-1 min-h-[48px] rounded-2xl font-bold bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-400 text-white transition-all hover:shadow-[0_0_32px_-4px_rgba(6,182,212,0.4)] hover:brightness-110 active:scale-[0.98] flex items-center justify-center gap-2">
+              {saved ? <><CheckCircle2 className="h-4 w-4" />Saved!</> : "Save Settings"}
+            </button>
+            <Button onClick={handleLogout} variant="outline" size="lg" className="w-full sm:w-auto sm:min-w-[140px] min-h-[48px] rounded-2xl border-white/[0.08] bg-white/[0.02]"><LogOut className="h-4 w-4" />Logout</Button>
           </div>
-          {saved && (
-            <span className="text-xs md:text-sm text-emerald-400 -mt-3 block">
-              Saved to local storage
-            </span>
-          )}
+          {saved && <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-xs text-emerald-400 block">Saved to local storage</motion.span>}
         </div>
       </div>
     </div>
   );
 }
 
-function ProfileField({ label, value, fullWidth }: { label: string; value: string; fullWidth?: boolean }) {
-  return (
-    <div className={cn("rounded-lg bg-secondary/50 px-3 py-2.5", fullWidth && "col-span-2")}>
-      <div className="text-[10px] text-muted-foreground">{label}</div>
-      <div className="text-sm font-medium">{value}</div>
-    </div>
-  );
+function PF({ label, value, fw }: { label: string; value: string; fw?: boolean }) {
+  return <div className={cn("glass-card rounded-xl px-4 py-3", fw && "col-span-2")}><div className="text-[9px] uppercase tracking-[0.15em] text-zinc-600 mb-1">{label}</div><div className="text-sm font-medium text-zinc-200">{value}</div></div>;
 }

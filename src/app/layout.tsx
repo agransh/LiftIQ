@@ -1,15 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
+import { AppShell } from "@/components/providers/app-shell";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -18,17 +21,17 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#09090b",
+  themeColor: "#030305",
 };
 
 export const metadata: Metadata = {
-  title: "Lift IQ — AI Workout Form Coach",
+  title: "LiftIQ — AI Form Coach",
   description:
-    "Real-time AI-powered workout form analysis. Get instant feedback on your exercise form, track reps, and improve with every session.",
+    "Real-time AI-powered workout form analysis. Your camera is your coach.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Lift IQ",
+    title: "LiftIQ",
   },
 };
 
@@ -40,10 +43,16 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} dark antialiased`}
     >
-      <body className="min-h-[100dvh] bg-background text-foreground overscroll-none">
-        {children}
+      <body className="noise min-h-[100dvh] bg-[#030305] text-zinc-200 overscroll-none selection:bg-cyan-500/20 selection:text-cyan-100">
+        {/* Ambient radial glow */}
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <div className="absolute top-[-30%] left-[15%] h-[70vh] w-[70vh] rounded-full bg-cyan-500/[0.04] blur-[120px]" />
+          <div className="absolute bottom-[-20%] right-[10%] h-[50vh] w-[50vh] rounded-full bg-blue-500/[0.03] blur-[100px]" />
+          <div className="absolute top-[40%] right-[30%] h-[30vh] w-[30vh] rounded-full bg-violet-500/[0.02] blur-[80px]" />
+        </div>
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );

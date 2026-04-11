@@ -5,9 +5,15 @@ import { useWorkoutStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 
 function getScoreColor(score: number): string {
-  if (score >= 85) return "text-emerald-400";
-  if (score >= 65) return "text-yellow-400";
-  return "text-red-400";
+  if (score >= 85) return "text-green-400";
+  if (score >= 65) return "text-amber-400";
+  return "text-rose-400";
+}
+
+function getScorePillTint(score: number): string {
+  if (score >= 85) return "border-green-500/25 bg-green-500/[0.08]";
+  if (score >= 65) return "border-amber-500/25 bg-amber-500/[0.08]";
+  return "border-rose-500/25 bg-rose-500/[0.08]";
 }
 
 export function MobileWorkoutHUD() {
@@ -46,46 +52,72 @@ export function MobileWorkoutHUD() {
 
   return (
     <div className="absolute inset-x-0 top-0 z-20 pointer-events-none">
-      {/* Top HUD bar */}
-      <div className="flex items-start justify-between p-3"
+      {/* Top HUD bar — score | phase + REC | reps */}
+      <div
+        className="flex items-start justify-between gap-2 px-3 pt-3"
         style={{ paddingTop: "max(0.75rem, var(--safe-top))" }}
       >
-        {/* Score */}
-        <div className="glass-card rounded-xl px-3 py-2 min-w-[72px] text-center">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Score</div>
-          <div className={cn("text-2xl font-bold tabular-nums leading-tight", getScoreColor(currentScore))}>
+        {/* Score — left */}
+        <div
+          className={cn(
+            "glass-card rounded-2xl px-3.5 py-2.5 min-w-[76px] text-center shadow-lg shadow-black/20",
+            getScorePillTint(currentScore)
+          )}
+        >
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Score
+          </div>
+          <div
+            className={cn(
+              "text-2xl font-bold tabular-nums leading-tight",
+              getScoreColor(currentScore)
+            )}
+          >
             {currentScore}
           </div>
         </div>
 
-        {/* Phase + recording indicator */}
-        <div className="flex flex-col items-center gap-1 mt-1">
-          {isRecording && (
-            <div className="glass-card rounded-full px-2.5 py-1 flex items-center gap-1.5">
-              <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-              <span className="text-[10px] uppercase tracking-wider text-red-400 font-medium">REC</span>
+        {/* Phase + REC — center */}
+        <div className="flex flex-1 min-w-0 flex-col items-center justify-center gap-1.5 mt-0.5">
+          <div className="flex flex-wrap items-center justify-center gap-1.5">
+            {isRecording && (
+              <div className="glass-card rounded-full px-3 py-1.5 flex items-center gap-2 border-red-500/30 shadow-md shadow-black/25">
+                <span className="h-2 w-2 rounded-full shrink-0 bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.65)] animate-pulse" />
+                <span className="text-[10px] uppercase tracking-wider font-semibold text-red-400">
+                  REC
+                </span>
+              </div>
+            )}
+
+            <div className="glass-card rounded-full px-3.5 py-1.5 shadow-md shadow-black/25 border-white/[0.06]">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground text-center">
+                Phase
+              </div>
+              <div className="text-xs font-semibold tracking-tight text-foreground text-center max-w-[140px] truncate">
+                {currentPhase || "Ready"}
+              </div>
             </div>
-          )}
-          <div className="glass-card rounded-full px-3 py-1.5">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
-              {currentPhase || "Ready"}
-            </span>
           </div>
         </div>
 
-        {/* Reps */}
-        <div className="glass-card rounded-xl px-3 py-2 min-w-[72px] text-center">
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Reps</div>
-          <div className="text-2xl font-bold tabular-nums leading-tight">
+        {/* Reps — right */}
+        <div className="glass-card rounded-2xl px-3.5 py-2.5 min-w-[76px] text-center border-white/[0.06] shadow-lg shadow-black/20">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Reps
+          </div>
+          <div className="text-2xl font-bold tabular-nums leading-tight text-foreground">
             {repCount}
           </div>
         </div>
       </div>
 
-      {/* Timer — top center below phase */}
-      <div className="flex justify-center -mt-1">
-        <div className="glass-card rounded-lg px-2.5 py-1">
-          <span className="text-xs font-mono tabular-nums text-muted-foreground">
+      {/* Timer — centered below */}
+      <div className="flex justify-center px-3 pb-1 pt-1">
+        <div className="glass-card rounded-full px-4 py-2 min-w-[120px] text-center shadow-md">
+          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            Timer
+          </div>
+          <span className="text-sm font-mono tabular-nums font-semibold text-foreground tracking-wide">
             {formatTime(elapsed)}
           </span>
         </div>
