@@ -12,7 +12,7 @@ import { MobileWorkoutHUD } from "@/components/workout/mobile-hud";
 import { PostWorkoutSummary } from "@/components/workout/post-workout-summary";
 import { ExerciseManager } from "@/components/workout/exercise-manager";
 import { useWorkoutStore } from "@/lib/store";
-import { hasCompletedOnboarding } from "@/lib/storage";
+import { hasCompletedOnboarding, fetchHasCompletedOnboarding } from "@/lib/storage";
 import { UserExercise } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Activity, ChevronDown, ChevronUp, ListPlus, Video } from "lucide-react";
@@ -32,8 +32,11 @@ export default function WorkoutPage() {
   const [selectedUserExercise, setSelectedUserExercise] = useState<UserExercise | null>(null);
 
   useEffect(() => {
+    // Check localStorage first, then verify with Supabase
     if (typeof window !== "undefined" && !hasCompletedOnboarding()) {
-      router.push("/onboarding");
+      fetchHasCompletedOnboarding().then((done) => {
+        if (!done) router.push("/onboarding");
+      });
     }
   }, [router]);
 

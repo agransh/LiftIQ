@@ -34,7 +34,7 @@ export function WorkoutControls() {
     startWorkout();
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
     const config = getExercise(selectedExercise);
     const now = Date.now();
     const totalScore =
@@ -60,7 +60,7 @@ export function WorkoutControls() {
     };
 
     saveSession(session);
-    updateStreak();
+    await updateStreak();
 
     setLastSession(session);
     stopWorkout();
