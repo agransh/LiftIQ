@@ -63,6 +63,7 @@ export interface WorkoutSession {
   totalScore: number;
   caloriesBurned: number;
   isRecorded?: boolean;
+  recordingId?: string;
 }
 
 export interface DailyLog {

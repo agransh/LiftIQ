@@ -10,7 +10,7 @@ export const lungeConfig: ExerciseConfig = {
   name: "Lunge",
   description: "Step forward with one leg, lowering until both knees are bent at about 90 degrees.",
   targetJoints: [L.LEFT_HIP, L.RIGHT_HIP, L.LEFT_KNEE, L.RIGHT_KNEE, L.LEFT_ANKLE, L.RIGHT_ANKLE],
-  phases: ["standing", "stepping", "bottom", "returning"],
+  phases: ["standing", "stepping", "bottom"],
   caloriesPerRep: 0.4,
 
   detectPhase(angles: Record<string, number>): string {

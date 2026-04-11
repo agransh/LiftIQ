@@ -10,7 +10,7 @@ export const situpConfig: ExerciseConfig = {
   name: "Sit-Up",
   description: "Lie on your back, curl your torso up toward your knees.",
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_HIP, L.RIGHT_HIP, L.LEFT_KNEE, L.RIGHT_KNEE],
-  phases: ["down", "rising", "up", "lowering"],
+  phases: ["down", "rising", "up"],
   caloriesPerRep: 0.3,
   detectPhase(angles: Record<string, number>): string {
     const avgHip = (angles.leftHip + angles.rightHip) / 2;

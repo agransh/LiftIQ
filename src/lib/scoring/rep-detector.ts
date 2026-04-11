@@ -1,14 +1,22 @@
 import { ExerciseConfig, Landmark, RepResult, JointFeedback } from "@/types";
 import { getCommonAngles } from "@/lib/pose/angle-utils";
 
+const PHASE_STABILITY_FRAMES = 3;
+const REP_COOLDOWN_MS = 400;
+const ANGLE_SMOOTHING_WINDOW = 3;
+
 export class RepDetector {
   private config: ExerciseConfig;
   private prevPhase: string = "";
-  private phaseHistory: string[] = [];
+  private stablePhase: string = "";
+  private phaseCounter: number = 0;
   private currentIssues: JointFeedback[] = [];
   private scoreAccumulator: number[] = [];
   private repCount: number = 0;
   private inRep: boolean = false;
+  private reachedDeepPhase: boolean = false;
+  private lastRepTime: number = 0;
+  private angleHistory: Record<string, number>[] = [];
 
   constructor(config: ExerciseConfig) {
     this.config = config;
@@ -16,11 +24,53 @@ export class RepDetector {
 
   reset() {
     this.prevPhase = "";
-    this.phaseHistory = [];
+    this.stablePhase = "";
+    this.phaseCounter = 0;
     this.currentIssues = [];
     this.scoreAccumulator = [];
     this.repCount = 0;
     this.inRep = false;
+    this.reachedDeepPhase = false;
+    this.lastRepTime = 0;
+    this.angleHistory = [];
+  }
+
+  private smoothAngles(angles: Record<string, number>): Record<string, number> {
+    this.angleHistory.push(angles);
+    if (this.angleHistory.length > ANGLE_SMOOTHING_WINDOW) {
+      this.angleHistory.shift();
+    }
+    if (this.angleHistory.length < 2) return angles;
+
+    const smoothed: Record<string, number> = {};
+    for (const key of Object.keys(angles)) {
+      const values = this.angleHistory.map((a) => a[key]);
+      smoothed[key] = values.reduce((a, b) => a + b, 0) / values.length;
+    }
+    return smoothed;
+  }
+
+  private getDeepPhase(): string {
+    const phases = this.config.phases;
+    if (phases.length <= 2) return phases[phases.length - 1];
+    // The deepest phase is the peak-effort point in the movement cycle:
+    // 3-phase [start, transit, peak]: last phase (index 2)
+    // 4-phase [start, down, bottom, up]: middle phase (index 2)
+    return phases[Math.min(phases.length - 1, 2)];
+  }
+
+  private getStablePhase(rawPhase: string): string {
+    if (rawPhase === this.prevPhase) {
+      this.phaseCounter++;
+    } else {
+      this.phaseCounter = 1;
+    }
+    this.prevPhase = rawPhase;
+
+    if (this.phaseCounter >= PHASE_STABILITY_FRAMES) {
+      this.stablePhase = rawPhase;
+    }
+    return this.stablePhase;
   }
 
   update(landmarks: Landmark[]): {
@@ -32,8 +82,10 @@ export class RepDetector {
     repResult?: RepResult;
     repCount: number;
   } {
-    const angles = getCommonAngles(landmarks);
-    const phase = this.config.detectPhase(angles, landmarks);
+    const rawAngles = getCommonAngles(landmarks);
+    const angles = this.smoothAngles(rawAngles);
+    const rawPhase = this.config.detectPhase(angles, landmarks);
+    const phase = this.getStablePhase(rawPhase);
     const { score, issues } = this.config.scoreRep(angles, landmarks, phase);
     const cues = this.config.getCoachingCues(angles, landmarks, phase);
 
@@ -43,52 +95,51 @@ export class RepDetector {
     let repCompleted = false;
     let repResult: RepResult | undefined;
 
-    // Rep detection: detect a full cycle returning to the first phase
     const phases = this.config.phases;
 
-    if (phase !== this.prevPhase) {
-      this.phaseHistory.push(phase);
+    if (this.config.id === "plank") {
+      // No rep counting for holds
+    } else if (phases.length >= 2 && phase !== "") {
+      const startPhase = phases[0];
+      const midPhases = phases.slice(1);
+      const deepPhase = this.getDeepPhase();
 
-      // For plank, don't count reps (it's a hold)
-      if (this.config.id === "plank") {
-        // No rep counting for plank
-      } else {
-        // A rep is completed when we return to the starting phase after visiting at least one other phase
-        if (phases.length >= 2) {
-          const startPhase = phases[0];
-          const midPhases = phases.slice(1);
+      if (!this.inRep && midPhases.includes(phase)) {
+        this.inRep = true;
+        this.reachedDeepPhase = false;
+        this.currentIssues = [];
+        this.scoreAccumulator = [score];
+      }
 
-          if (!this.inRep && midPhases.includes(phase)) {
-            this.inRep = true;
-            this.currentIssues = [];
-            this.scoreAccumulator = [score];
-          }
+      if (this.inRep && phase === deepPhase) {
+        this.reachedDeepPhase = true;
+      }
 
-          if (this.inRep && phase === startPhase) {
-            this.repCount++;
-            this.inRep = false;
+      if (this.inRep && phase === startPhase && this.reachedDeepPhase) {
+        const now = Date.now();
+        if (now - this.lastRepTime > REP_COOLDOWN_MS) {
+          this.repCount++;
+          this.lastRepTime = now;
 
-            const avgScore = Math.round(
-              this.scoreAccumulator.reduce((a, b) => a + b, 0) / this.scoreAccumulator.length
-            );
+          const avgScore = Math.round(
+            this.scoreAccumulator.reduce((a, b) => a + b, 0) / this.scoreAccumulator.length
+          );
 
-            // Deduplicate issues
-            const uniqueIssues = this.deduplicateIssues(this.currentIssues);
+          const uniqueIssues = this.deduplicateIssues(this.currentIssues);
 
-            repResult = {
-              score: avgScore,
-              issues: uniqueIssues,
-              timestamp: Date.now(),
-            };
-            repCompleted = true;
-            this.currentIssues = [];
-            this.scoreAccumulator = [];
-          }
+          repResult = {
+            score: avgScore,
+            issues: uniqueIssues,
+            timestamp: now,
+          };
+          repCompleted = true;
         }
+        this.inRep = false;
+        this.reachedDeepPhase = false;
+        this.currentIssues = [];
+        this.scoreAccumulator = [];
       }
     }
-
-    this.prevPhase = phase;
 
     return {
       phase,
