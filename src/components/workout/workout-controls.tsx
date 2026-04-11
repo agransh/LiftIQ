@@ -14,6 +14,7 @@ export function WorkoutControls() {
     isPaused,
     isRecording,
     isCountingDown,
+    isFormChecking,
     selectedExercise,
     hasSelectedExercise,
     sessionStartTime,
@@ -163,7 +164,7 @@ export function WorkoutControls() {
 
   return (
     <div className="glass-card w-full rounded-2xl p-3">
-      {isCountingDown ? (
+      {isCountingDown || isFormChecking ? (
         <Button
           onClick={cancelCountdown}
           variant="outline"

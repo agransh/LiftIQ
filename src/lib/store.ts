@@ -26,12 +26,14 @@ interface WorkoutState {
   isRecording: boolean;
   isCountingDown: boolean;
   countdownSeconds: number;
+  isFormChecking: boolean;
   sessionStartTime: number | null;
   sessionWeight: number | undefined;
   startCountdown: (recording?: boolean) => void;
   setCountdownSeconds: (seconds: number) => void;
   finishCountdown: () => void;
   cancelCountdown: () => void;
+  passFormCheck: () => void;
   startWorkout: (recording?: boolean) => void;
   pauseWorkout: () => void;
   resumeWorkout: () => void;
@@ -100,6 +102,7 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
   isRecording: false,
   isCountingDown: false,
   countdownSeconds: 0,
+  isFormChecking: false,
   sessionStartTime: null,
   sessionWeight: undefined,
   startCountdown: (recording = false) =>
@@ -113,9 +116,9 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
     set({
       isCountingDown: false,
       countdownSeconds: 0,
-      isWorkoutActive: true,
+      isFormChecking: true,
+      isWorkoutActive: false,
       isPaused: false,
-      sessionStartTime: Date.now(),
       repCount: 0,
       repResults: [],
       currentScore: 100,
@@ -124,13 +127,21 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
     set({
       isCountingDown: false,
       countdownSeconds: 0,
+      isFormChecking: false,
       isRecording: false,
+    }),
+  passFormCheck: () =>
+    set({
+      isFormChecking: false,
+      isWorkoutActive: true,
+      sessionStartTime: Date.now(),
     }),
   startWorkout: (recording = false) =>
     set({
       isWorkoutActive: true,
       isPaused: false,
       isRecording: recording,
+      isFormChecking: false,
       sessionStartTime: Date.now(),
       repCount: 0,
       repResults: [],
@@ -138,7 +149,7 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
     }),
   pauseWorkout: () => set({ isPaused: true }),
   resumeWorkout: () => set({ isPaused: false }),
-  stopWorkout: () => set({ isWorkoutActive: false, isPaused: false, isRecording: false, isCountingDown: false, countdownSeconds: 0 }),
+  stopWorkout: () => set({ isWorkoutActive: false, isPaused: false, isRecording: false, isCountingDown: false, countdownSeconds: 0, isFormChecking: false }),
   setSessionWeight: (weight) => set({ sessionWeight: weight }),
 
   currentScore: 100,

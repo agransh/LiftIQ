@@ -43,6 +43,7 @@ export default function WorkoutPage() {
     isWorkoutActive,
     isRecording,
     isCountingDown,
+    isFormChecking,
     sessionWeight,
     hasSelectedExercise,
     setSelectedExercise,
@@ -212,7 +213,7 @@ export default function WorkoutPage() {
             </div>
           )}
 
-          {!isWorkoutActive && !isCountingDown && !routineProgress?.isResting && (
+          {!isWorkoutActive && !isCountingDown && !isFormChecking && !routineProgress?.isResting && (
             <>
               <div className="flex items-center gap-2 px-4 pt-4">
                 <button
@@ -269,7 +270,7 @@ export default function WorkoutPage() {
               <div className="flex-1">
                 <WorkoutControls />
               </div>
-              {!isWorkoutActive && !isCountingDown && (
+              {!isWorkoutActive && !isCountingDown && !isFormChecking && (
                 <Button
                   variant="outline"
                   size="lg"
@@ -331,7 +332,7 @@ export default function WorkoutPage() {
               >
                 <ListPlus className="h-4 w-4" /> My Exercises
               </Button>
-              {!isWorkoutActive && !isCountingDown && (
+              {!isWorkoutActive && !isCountingDown && !isFormChecking && (
                 <Button
                   variant="outline"
                   size="sm"

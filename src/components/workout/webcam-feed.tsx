@@ -5,10 +5,13 @@ import { usePoseDetection } from "@/lib/pose/use-pose-detection";
 import { useWorkoutStore } from "@/lib/store";
 import { RepDetector } from "@/lib/scoring/rep-detector";
 import { getExercise } from "@/lib/exercises";
+import { getCommonAngles } from "@/lib/pose/angle-utils";
 import { Landmark, JointFeedback } from "@/types";
 import { getVoiceManager, classifyCuePriority } from "@/lib/ai/voice";
-import { Loader2, Camera, CameraOff, SwitchCamera } from "lucide-react";
+import { Loader2, Camera, CameraOff, SwitchCamera, CheckCircle2, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const FORM_CHECK_REQUIRED_FRAMES = 15;
 
 interface WebcamFeedProps {
   mobile?: boolean;
@@ -21,9 +24,11 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     isPaused,
     isRecording,
     isCountingDown,
+    isFormChecking,
     countdownSeconds,
     setCountdownSeconds,
     finishCountdown,
+    passFormCheck,
     setCurrentScore,
     setRepCount,
     setCurrentPhase,
@@ -37,12 +42,15 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   } = useWorkoutStore();
 
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">(settings.cameraFacing || "user");
+  const [formCheckProgress, setFormCheckProgress] = useState(0);
+  const [formDetectedBanner, setFormDetectedBanner] = useState(false);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
   const repDetectorRef = useRef<RepDetector | null>(null);
   const exerciseRef = useRef(selectedExercise);
+  const formCheckFramesRef = useRef(0);
   const { setVoiceInfo } = useWorkoutStore();
 
   // ── Countdown timer ──
@@ -83,7 +91,16 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     getVoiceManager().resetFrameCounts();
   }, [selectedExercise]);
 
-  // Fresh RepDetector when workout starts so stale phase state from walking to/from camera doesn't cause ghost reps
+  // Reset form-check tracking when entering form-check phase
+  useEffect(() => {
+    if (isFormChecking) {
+      formCheckFramesRef.current = 0;
+      setFormCheckProgress(0);
+      setFormDetectedBanner(false);
+    }
+  }, [isFormChecking]);
+
+  // Fresh RepDetector when workout starts so stale phase state doesn't cause ghost reps
   useEffect(() => {
     if (isWorkoutActive) {
       const config = getExercise(exerciseRef.current);
@@ -152,15 +169,50 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
 
   const handleFrame = useCallback(
     (landmarks: Landmark[]) => {
-      if (!isWorkoutActive || isPaused || !repDetectorRef.current) return;
-
-      // Reject frames where key body landmarks aren't clearly visible — prevents
-      // ghost reps from partial detections while walking to/from camera
-      const KEY_LANDMARKS = [11, 12, 13, 14, 23, 24]; // shoulders, elbows, hips
+      const KEY_LANDMARKS = [11, 12, 13, 14, 23, 24];
       const MIN_VISIBILITY = 0.6;
       const visibleCount = KEY_LANDMARKS.filter(
         (idx) => landmarks[idx] && (landmarks[idx].visibility ?? 0) >= MIN_VISIBILITY
       ).length;
+
+      // ── Form-check phase: detect starting position before counting reps ──
+      if (isFormChecking) {
+        const config = getExercise(exerciseRef.current);
+        if (!config) return;
+
+        // Draw skeleton even during form check for visual feedback
+        drawSkeletonRef.current(landmarks);
+
+        if (visibleCount < 4) {
+          formCheckFramesRef.current = 0;
+          setFormCheckProgress(0);
+          return;
+        }
+
+        const angles = getCommonAngles(landmarks);
+        const detectedPhase = config.detectPhase(angles, landmarks);
+        const startPhase = config.phases[0];
+
+        if (detectedPhase === startPhase) {
+          formCheckFramesRef.current++;
+          setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
+
+          if (formCheckFramesRef.current >= FORM_CHECK_REQUIRED_FRAMES) {
+            setFormDetectedBanner(true);
+            setTimeout(() => {
+              passFormCheck();
+              setFormDetectedBanner(false);
+            }, 2000);
+          }
+        } else {
+          formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 2);
+          setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
+        }
+        return;
+      }
+
+      // ── Normal workout: count reps ──
+      if (!isWorkoutActive || isPaused || !repDetectorRef.current) return;
       if (visibleCount < 4) return;
 
       const result = repDetectorRef.current.update(landmarks);
@@ -192,6 +244,8 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     [
       isWorkoutActive,
       isPaused,
+      isFormChecking,
+      passFormCheck,
       setCurrentScore,
       setRepCount,
       setCurrentPhase,
@@ -312,6 +366,54 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         </div>
       )}
 
+      {/* Form-check overlay */}
+      {isFormChecking && !formDetectedBanner && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-30">
+          <div className="text-center px-6">
+            <div className="relative mx-auto mb-4 h-16 w-16 flex items-center justify-center">
+              <div className="absolute inset-0 rounded-full border-2 border-cyan-500/30" />
+              <div
+                className="absolute inset-0 rounded-full border-2 border-transparent border-t-cyan-400 animate-spin"
+                style={{ animationDuration: "1.5s" }}
+              />
+              <ScanLine className="h-7 w-7 text-cyan-400 animate-pulse" />
+            </div>
+            <div className="text-sm font-bold uppercase tracking-[0.15em] text-cyan-400 mb-2">
+              Analyzing Your Form
+            </div>
+            <div className="text-xs text-white/60 mb-4">
+              Get into the starting position for this exercise
+            </div>
+            <div className="w-48 mx-auto h-2 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-300 ease-out"
+                style={{ width: `${formCheckProgress}%` }}
+              />
+            </div>
+            <div className="text-[10px] text-white/40 mt-2 tabular-nums">
+              {formCheckProgress < 100 ? "Hold your position..." : "Almost there..."}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Form detected banner */}
+      {formDetectedBanner && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 z-30">
+          <div className="text-center px-6 animate-[fadeIn_0.4s_ease-out]">
+            <div className="mx-auto mb-4 h-16 w-16 flex items-center justify-center rounded-full bg-emerald-500/20 border-2 border-emerald-400">
+              <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+            </div>
+            <div className="text-lg font-bold text-emerald-400 mb-1">
+              Form Detected!
+            </div>
+            <div className="text-sm text-white/70">
+              Starting rep count now
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status overlays */}
       {(status === "loading" || status === "ready") && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/70 z-10">
@@ -343,7 +445,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
       )}
 
       {/* Workout not started overlay */}
-      {status === "detecting" && !isWorkoutActive && (
+      {status === "detecting" && !isWorkoutActive && !isFormChecking && !isCountingDown && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/30 z-10">
           <div className="glass-card rounded-xl px-6 py-4 text-center mx-4">
             <p className={cn("text-foreground", mobile ? "text-xs" : "text-sm")}>
