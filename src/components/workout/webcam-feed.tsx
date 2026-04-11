@@ -106,7 +106,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
       setFormDetectedBanner(false);
       setFormCheckHint("");
       lastHintRef.current = "";
-      speakCue("Now checking your form. Get into position.", true);
+      speakCue("Checking your form now. Get into the starting position.", true);
     }
   }, [isFormChecking]);
 
@@ -249,7 +249,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
           setFormCheckHint(holdHint);
           if (lastHintRef.current !== holdHint) {
             lastHintRef.current = holdHint;
-            speakCue("Good. Hold that position.");
+            speakCue("Looking good! Hold that position.");
           }
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
 
@@ -257,7 +257,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
             setFormDetectedBanner(true);
             setFormCheckHint("");
             playSuccessChime();
-            speakCue("Form detected. Starting rep count now.", true);
+            speakCue("Form is correct! Let's start the workout!", true);
             setTimeout(() => {
               passFormCheck();
               setFormDetectedBanner(false);
@@ -471,10 +471,10 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
               <CheckCircle2 className="h-8 w-8 text-emerald-400" />
             </div>
             <div className="text-lg font-bold text-emerald-400 mb-1">
-              Form Detected!
+              Form is Correct!
             </div>
             <div className="text-sm text-white/70">
-              Starting rep count now
+              Let's start the workout!
             </div>
           </div>
         </div>

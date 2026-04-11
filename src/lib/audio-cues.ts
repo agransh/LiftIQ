@@ -26,11 +26,8 @@ export function playBeep(freq: number, durationMs: number, volume = 0.3) {
 }
 
 export function playCountdownTick(secondsLeft: number) {
-  if (secondsLeft <= 3) {
-    playBeep(880, 150, 0.5);
-  } else {
-    playBeep(600, 100, 0.25);
-  }
+  if (secondsLeft <= 3) return;
+  playBeep(600, 100, 0.25);
 }
 
 export function playSuccessChime() {
@@ -100,9 +97,13 @@ export function speakCue(text: string, force = false) {
 export function speakCountdown(seconds: number) {
   if (seconds === 10) {
     speakCue("Get into position. 10 seconds.", true);
-  } else if (seconds <= 3 && seconds > 0) {
-    speakCue(String(seconds), true);
   } else if (seconds === 5) {
-    speakCue("5 seconds", true);
+    speakCue("5 seconds.", true);
+  } else if (seconds === 3) {
+    speakCue("3", true);
+  } else if (seconds === 2) {
+    speakCue("2", true);
+  } else if (seconds === 1) {
+    speakCue("1", true);
   }
 }
