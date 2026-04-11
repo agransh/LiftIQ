@@ -80,9 +80,18 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     } else {
       repDetectorRef.current = null;
     }
-    // Reset voice frame counts when exercise changes so stale cue tracking doesn't carry over
     getVoiceManager().resetFrameCounts();
   }, [selectedExercise]);
+
+  // Fresh RepDetector when workout starts so stale phase state from walking to/from camera doesn't cause ghost reps
+  useEffect(() => {
+    if (isWorkoutActive) {
+      const config = getExercise(exerciseRef.current);
+      if (config) {
+        repDetectorRef.current = new RepDetector(config);
+      }
+    }
+  }, [isWorkoutActive]);
 
   // Manage voice coach lifecycle: stop on workout end, pause/resume, and mute on toggle
   useEffect(() => {
@@ -144,6 +153,15 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   const handleFrame = useCallback(
     (landmarks: Landmark[]) => {
       if (!isWorkoutActive || isPaused || !repDetectorRef.current) return;
+
+      // Reject frames where key body landmarks aren't clearly visible — prevents
+      // ghost reps from partial detections while walking to/from camera
+      const KEY_LANDMARKS = [11, 12, 13, 14, 23, 24]; // shoulders, elbows, hips
+      const MIN_VISIBILITY = 0.6;
+      const visibleCount = KEY_LANDMARKS.filter(
+        (idx) => landmarks[idx] && (landmarks[idx].visibility ?? 0) >= MIN_VISIBILITY
+      ).length;
+      if (visibleCount < 4) return;
 
       const result = repDetectorRef.current.update(landmarks);
       setCurrentScore(result.score);
@@ -248,12 +266,14 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover"
+        style={cameraFacing === "user" ? { transform: "scaleX(-1)" } : undefined}
         playsInline
         muted
       />
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
+        style={cameraFacing === "user" ? { transform: "scaleX(-1)" } : undefined}
       />
 
       {/* Camera flip button */}

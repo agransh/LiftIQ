@@ -2,10 +2,12 @@ import { ExerciseConfig, Landmark, RepResult, JointFeedback } from "@/types";
 import { getCommonAngles } from "@/lib/pose/angle-utils";
 
 /** Consecutive matching raw frames before stable phase updates. */
-const PHASE_STABILITY_FRAMES = 2;
+const PHASE_STABILITY_FRAMES = 3;
 /** Min gap between counted reps — prevents jitter double-counts without dropping fast sets. */
-const REP_COOLDOWN_MS = 150;
-const ANGLE_SMOOTHING_WINDOW = 2;
+const REP_COOLDOWN_MS = 600;
+const ANGLE_SMOOTHING_WINDOW = 3;
+/** Minimum frames spent in deep phase before a rep-return can count. Prevents flyby triggers. */
+const MIN_DEEP_FRAMES = 2;
 
 export class RepDetector {
   private config: ExerciseConfig;
@@ -17,6 +19,7 @@ export class RepDetector {
   private repCount: number = 0;
   private inRep: boolean = false;
   private reachedDeepPhase: boolean = false;
+  private deepFrameCount: number = 0;
   private lastRepTime: number = 0;
   private angleHistory: Record<string, number>[] = [];
 
@@ -33,6 +36,7 @@ export class RepDetector {
     this.repCount = 0;
     this.inRep = false;
     this.reachedDeepPhase = false;
+    this.deepFrameCount = 0;
     this.lastRepTime = 0;
     this.angleHistory = [];
   }
@@ -113,16 +117,20 @@ export class RepDetector {
       if (!this.inRep && (midPhases.includes(phase) || midPhases.includes(rawPhase))) {
         this.inRep = true;
         this.reachedDeepPhase = false;
+        this.deepFrameCount = 0;
         this.currentIssues = [];
         this.scoreAccumulator = [score];
       }
 
-      // Use raw phase for "hit bottom" — stable phase can lag 2+ frames and miss short pauses at depth.
-      if (this.inRep && rawPhase === deepPhase) {
-        this.reachedDeepPhase = true;
+      // Track time spent in deep phase to filter out flyby transitions
+      if (this.inRep && (rawPhase === deepPhase || phase === deepPhase)) {
+        this.deepFrameCount++;
+        if (this.deepFrameCount >= MIN_DEEP_FRAMES) {
+          this.reachedDeepPhase = true;
+        }
       }
 
-      if (this.inRep && phase === startPhase && this.reachedDeepPhase) {
+      if (this.inRep && phase === startPhase && this.reachedDeepPhase && this.scoreAccumulator.length >= 4) {
         const now = Date.now();
         if (now - this.lastRepTime > REP_COOLDOWN_MS) {
           this.repCount++;
@@ -143,6 +151,7 @@ export class RepDetector {
 
           this.inRep = false;
           this.reachedDeepPhase = false;
+          this.deepFrameCount = 0;
           this.currentIssues = [];
           this.scoreAccumulator = [];
         }
