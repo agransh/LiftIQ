@@ -1,7 +1,5 @@
 # Lift IQ — AI Workout Form Coach
 
-> **Built for Bitcamp 2026**
-
 Real-time AI-powered workout form analysis that uses your webcam to track body joints, score every rep out of 100, and deliver instant corrective coaching — like having a personal trainer in your browser.
 
 ## Devpost Summary

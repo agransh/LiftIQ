@@ -44,23 +44,11 @@ export default function LandingPage() {
           <div className="grid gap-16 lg:grid-cols-2 lg:gap-20 items-center">
             {/* Left: Copy */}
             <div>
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={fadeUp}
-                custom={0}
-              >
-                <div className="inline-flex items-center gap-2 rounded-full glass-card px-4 py-1.5 text-xs font-semibold tracking-wide text-cyan-300 mb-8">
-                  <Zap className="h-3 w-3" />
-                  Built for Bitcamp 2026
-                </div>
-              </motion.div>
-
               <motion.h1
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
-                custom={1}
+                custom={0}
                 className="text-[2.75rem] sm:text-6xl lg:text-7xl font-black tracking-[-0.04em] leading-[1.05]"
               >
                 Your camera
@@ -74,7 +62,7 @@ export default function LandingPage() {
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
-                custom={2}
+                custom={1}
                 className="mt-6 text-lg md:text-xl text-zinc-400 leading-relaxed max-w-lg"
               >
                 LiftIQ uses AI to score every rep, track every joint, and coach you to perfect form — all from your browser.
@@ -84,7 +72,7 @@ export default function LandingPage() {
                 initial="hidden"
                 animate="visible"
                 variants={fadeUp}
-                custom={3}
+                custom={2}
                 className="mt-10 flex flex-col sm:flex-row gap-4"
               >
                 <Link
@@ -306,7 +294,7 @@ export default function LandingPage() {
             <span className="font-bold text-sm">Lift<span className="text-cyan-400">IQ</span></span>
           </div>
           <span className="text-zinc-700 hidden md:block">·</span>
-          <span className="text-xs text-zinc-600">AI Form Coach — Built for Bitcamp 2026</span>
+          <span className="text-xs text-zinc-600">AI Form Coach</span>
           <span className="text-[10px] text-zinc-700 font-mono tabular-nums" title="Git commit this build was made from (Vercel)">
             · build {process.env.NEXT_PUBLIC_DEPLOY_SHA}
           </span>
