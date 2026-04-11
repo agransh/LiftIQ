@@ -2,6 +2,7 @@
 
 import { useWorkoutStore } from "@/lib/store";
 import { saveSession, updateStreak } from "@/lib/storage";
+import { saveRecording } from "@/lib/storage/recordings-db";
 import { getExercise } from "@/lib/exercises";
 import { WorkoutSession } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -16,12 +17,14 @@ export function WorkoutControls() {
     sessionStartTime,
     sessionWeight,
     repResults,
+    recordingBlob,
     startWorkout,
     pauseWorkout,
     resumeWorkout,
     stopWorkout,
     clearRepResults,
     setLastSession,
+    setRecordingBlob,
     setRepCount,
     setCurrentScore,
     setCurrentCues,
@@ -31,10 +34,11 @@ export function WorkoutControls() {
 
   const handleStart = () => {
     clearRepResults();
+    setRecordingBlob(null);
     startWorkout();
   };
 
-  const handleStop = () => {
+  const handleStop = async () => {
     const config = getExercise(selectedExercise);
     const now = Date.now();
     const totalScore =
@@ -45,6 +49,8 @@ export function WorkoutControls() {
         : 0;
 
     const caloriesBurned = repResults.length * (config?.caloriesPerRep || 0.3);
+
+    const recordingId = isRecording ? `rec-${now}` : undefined;
 
     const session: WorkoutSession = {
       id: `session-${now}`,
@@ -57,13 +63,40 @@ export function WorkoutControls() {
       totalScore,
       caloriesBurned: Math.round(caloriesBurned * 10) / 10,
       isRecorded: isRecording,
+      recordingId,
     };
 
     saveSession(session);
     updateStreak();
-
     setLastSession(session);
+
+    // Stop workout first so MediaRecorder fires onstop and sets the blob
     stopWorkout();
+
+    // Save recording blob to IndexedDB after a short delay for the blob to be set
+    if (isRecording && recordingId) {
+      const duration = Math.floor((now - (sessionStartTime || now)) / 1000);
+      setTimeout(async () => {
+        const blob = useWorkoutStore.getState().recordingBlob;
+        if (blob) {
+          await saveRecording(
+            {
+              id: recordingId,
+              sessionId: session.id,
+              exercise: selectedExercise,
+              exerciseName: config?.name || selectedExercise,
+              reps: repResults.length,
+              score: totalScore,
+              duration,
+              createdAt: now,
+              size: blob.size,
+            },
+            blob
+          );
+          setRecordingBlob(null);
+        }
+      }, 500);
+    }
   };
 
   const handleReset = () => {

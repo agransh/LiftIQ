@@ -39,6 +39,10 @@ interface WorkoutState {
   addRepResult: (rep: RepResult) => void;
   clearRepResults: () => void;
 
+  // Recording
+  recordingBlob: Blob | null;
+  setRecordingBlob: (blob: Blob | null) => void;
+
   // Post-workout
   lastSession: WorkoutSession | null;
   setLastSession: (session: WorkoutSession | null) => void;
@@ -93,6 +97,9 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
   repResults: [],
   addRepResult: (rep) => set((state) => ({ repResults: [...state.repResults, rep] })),
   clearRepResults: () => set({ repResults: [] }),
+
+  recordingBlob: null,
+  setRecordingBlob: (blob) => set({ recordingBlob: blob }),
 
   lastSession: null,
   setLastSession: (session) => set({ lastSession: session }),

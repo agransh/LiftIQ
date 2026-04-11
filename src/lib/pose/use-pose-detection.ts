@@ -18,7 +18,10 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
+  const lastTimestampRef = useRef<number>(-1);
+  const lastVideoTimeRef = useRef<number>(-1);
   const poseLandmarkerRef = useRef<any>(null);
+  const modelReadyRef = useRef<boolean>(false);
   const [status, setStatus] = useState<PoseDetectionStatus>("loading");
   const [landmarks, setLandmarks] = useState<Landmark[] | null>(null);
   const onFrameRef = useRef(onFrame);
@@ -64,18 +67,19 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
       );
 
-      const mobile = isMobileDevice();
       const poseLandmarker = await PoseLandmarker.createFromOptions(wasmFiles, {
         baseOptions: {
           modelAssetPath:
             "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
-          delegate: mobile ? "CPU" : "GPU",
+          delegate: "CPU",
         },
         runningMode: "VIDEO",
         numPoses: 1,
       });
 
       poseLandmarkerRef.current = poseLandmarker;
+      modelReadyRef.current = true;
+      lastTimestampRef.current = performance.now();
       setStatus("ready");
       return true;
     } catch (err) {
@@ -148,13 +152,27 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
     const video = videoRef.current;
     const poseLandmarker = poseLandmarkerRef.current;
 
-    if (!video || !poseLandmarker || video.readyState < 2) {
+    if (!video || !poseLandmarker || !modelReadyRef.current || video.readyState < 2) {
       animFrameRef.current = requestAnimationFrame(detect);
       return;
     }
 
+    // Skip if the video hasn't advanced to a new frame
+    if (video.currentTime === lastVideoTimeRef.current) {
+      animFrameRef.current = requestAnimationFrame(detect);
+      return;
+    }
+    lastVideoTimeRef.current = video.currentTime;
+
+    const now = performance.now();
+    if (now <= lastTimestampRef.current) {
+      animFrameRef.current = requestAnimationFrame(detect);
+      return;
+    }
+    lastTimestampRef.current = now;
+
     try {
-      const result = poseLandmarker.detectForVideo(video, performance.now());
+      const result = poseLandmarker.detectForVideo(video, now);
       if (result.landmarks && result.landmarks.length > 0) {
         const lms: Landmark[] = result.landmarks[0].map((l: any) => ({
           x: l.x,
@@ -167,7 +185,7 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
         onFrameRef.current?.(lms);
       }
     } catch {
-      // Frame processing error — continue
+      // Frame processing error — continue to next frame
     }
 
     animFrameRef.current = requestAnimationFrame(detect);
