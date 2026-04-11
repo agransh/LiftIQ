@@ -1,10 +1,17 @@
 import { create } from "zustand";
 import { RepResult, JointFeedback, WorkoutSession, UserSettings, UserProfile, PoseDetectionStatus } from "@/types";
+import type { VoiceState } from "@/lib/ai/voice";
 
 interface WorkoutState {
   // Pose detection
   poseStatus: PoseDetectionStatus;
   setPoseStatus: (status: PoseDetectionStatus) => void;
+
+  // Voice coach state (driven by VoiceManager listener)
+  voiceState: VoiceState;
+  voiceCurrentCue: string | null;
+  voiceQueueSize: number;
+  setVoiceInfo: (info: { state: VoiceState; currentCue: string | null; queueSize: number }) => void;
 
   // Exercise
   selectedExercise: string;
@@ -68,6 +75,11 @@ interface WorkoutState {
 export const useWorkoutStore = create<WorkoutState>((set) => ({
   poseStatus: "loading",
   setPoseStatus: (status) => set({ poseStatus: status }),
+
+  voiceState: "idle" as VoiceState,
+  voiceCurrentCue: null,
+  voiceQueueSize: 0,
+  setVoiceInfo: (info) => set({ voiceState: info.state, voiceCurrentCue: info.currentCue, voiceQueueSize: info.queueSize }),
 
   selectedExercise: "",
   setSelectedExercise: (exercise) => set({ selectedExercise: exercise }),

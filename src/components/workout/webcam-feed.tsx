@@ -6,7 +6,7 @@ import { useWorkoutStore } from "@/lib/store";
 import { RepDetector } from "@/lib/scoring/rep-detector";
 import { getExercise } from "@/lib/exercises";
 import { Landmark, JointFeedback } from "@/types";
-import { getVoiceProvider, getCuePriority } from "@/lib/ai/voice";
+import { getVoiceManager, classifyCuePriority } from "@/lib/ai/voice";
 import { Loader2, Camera, CameraOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +36,14 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
 
   const repDetectorRef = useRef<RepDetector | null>(null);
   const exerciseRef = useRef(selectedExercise);
+  const { setVoiceInfo } = useWorkoutStore();
+
+  // Wire VoiceManager state changes into Zustand for UI reactivity
+  useEffect(() => {
+    const vm = getVoiceManager();
+    const unsub = vm.onChange((info) => setVoiceInfo(info));
+    return () => { unsub(); };
+  }, [setVoiceInfo]);
 
   useEffect(() => {
     const config = getExercise(selectedExercise);
@@ -45,7 +53,21 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     } else {
       repDetectorRef.current = null;
     }
+    // Reset voice frame counts when exercise changes so stale cue tracking doesn't carry over
+    getVoiceManager().resetFrameCounts();
   }, [selectedExercise]);
+
+  // Manage voice coach lifecycle: stop on workout end, pause/resume, and mute on toggle
+  useEffect(() => {
+    const vm = getVoiceManager();
+    if (!isWorkoutActive) {
+      vm.resetSession();
+    } else if (isPaused || !settings.voiceEnabled) {
+      vm.pause();
+    } else {
+      vm.resume();
+    }
+  }, [isWorkoutActive, isPaused, settings.voiceEnabled]);
 
   const drawSkeletonRef = useRef<
     (landmarks: Landmark[], jointColors?: Map<number, string>) => void
@@ -108,12 +130,13 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
       }
 
       if (settings.voiceEnabled) {
-        const voice = getVoiceProvider();
+        const vm = getVoiceManager();
+        const meta = { exercise: exerciseRef.current, phase: result.phase, repCount: result.repCount, score: result.score };
         for (const cue of result.cues) {
-          voice.speak(cue, getCuePriority(cue));
+          vm.speakCue(cue, classifyCuePriority(cue), meta);
         }
         if (result.repCompleted) {
-          voice.speakEncouragement(result.repCount);
+          vm.speakEncouragement(result.repCount);
         }
       }
 
