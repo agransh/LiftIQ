@@ -24,8 +24,14 @@ interface WorkoutState {
   isWorkoutActive: boolean;
   isPaused: boolean;
   isRecording: boolean;
+  isCountingDown: boolean;
+  countdownSeconds: number;
   sessionStartTime: number | null;
   sessionWeight: number | undefined;
+  startCountdown: (recording?: boolean) => void;
+  setCountdownSeconds: (seconds: number) => void;
+  finishCountdown: () => void;
+  cancelCountdown: () => void;
   startWorkout: (recording?: boolean) => void;
   pauseWorkout: () => void;
   resumeWorkout: () => void;
@@ -92,8 +98,34 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
   isWorkoutActive: false,
   isPaused: false,
   isRecording: false,
+  isCountingDown: false,
+  countdownSeconds: 0,
   sessionStartTime: null,
   sessionWeight: undefined,
+  startCountdown: (recording = false) =>
+    set({
+      isCountingDown: true,
+      countdownSeconds: 10,
+      isRecording: recording,
+    }),
+  setCountdownSeconds: (seconds) => set({ countdownSeconds: seconds }),
+  finishCountdown: () =>
+    set({
+      isCountingDown: false,
+      countdownSeconds: 0,
+      isWorkoutActive: true,
+      isPaused: false,
+      sessionStartTime: Date.now(),
+      repCount: 0,
+      repResults: [],
+      currentScore: 100,
+    }),
+  cancelCountdown: () =>
+    set({
+      isCountingDown: false,
+      countdownSeconds: 0,
+      isRecording: false,
+    }),
   startWorkout: (recording = false) =>
     set({
       isWorkoutActive: true,
@@ -106,7 +138,7 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
     }),
   pauseWorkout: () => set({ isPaused: true }),
   resumeWorkout: () => set({ isPaused: false }),
-  stopWorkout: () => set({ isWorkoutActive: false, isPaused: false, isRecording: false }),
+  stopWorkout: () => set({ isWorkoutActive: false, isPaused: false, isRecording: false, isCountingDown: false, countdownSeconds: 0 }),
   setSessionWeight: (weight) => set({ sessionWeight: weight }),
 
   currentScore: 100,

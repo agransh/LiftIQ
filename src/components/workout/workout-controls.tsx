@@ -6,20 +6,22 @@ import { saveRecording } from "@/lib/storage/recordings-db";
 import { getExercise } from "@/lib/exercises";
 import { WorkoutSession } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Play, Pause, Square, RotateCcw, CircleDot } from "lucide-react";
+import { Play, Pause, Square, RotateCcw, CircleDot, X } from "lucide-react";
 
 export function WorkoutControls() {
   const {
     isWorkoutActive,
     isPaused,
     isRecording,
+    isCountingDown,
     selectedExercise,
     hasSelectedExercise,
     sessionStartTime,
     sessionWeight,
     repResults,
     recordingBlob,
-    startWorkout,
+    startCountdown,
+    cancelCountdown,
     pauseWorkout,
     resumeWorkout,
     stopWorkout,
@@ -37,7 +39,7 @@ export function WorkoutControls() {
     if (!hasSelectedExercise || !selectedExercise) return;
     clearRepResults();
     setRecordingBlob(null);
-    startWorkout();
+    startCountdown();
   };
 
   const handleStop = async () => {
@@ -161,7 +163,17 @@ export function WorkoutControls() {
 
   return (
     <div className="glass-card w-full rounded-2xl p-3">
-      {!isWorkoutActive ? (
+      {isCountingDown ? (
+        <Button
+          onClick={cancelCountdown}
+          variant="outline"
+          size="lg"
+          className="w-full min-h-[48px] rounded-xl border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition-all"
+        >
+          <X className="h-4 w-4" />
+          Cancel
+        </Button>
+      ) : !isWorkoutActive ? (
         <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:items-stretch">
           <Button
             onClick={handleStart}

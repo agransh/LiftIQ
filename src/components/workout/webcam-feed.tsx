@@ -1,13 +1,13 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
 import { usePoseDetection } from "@/lib/pose/use-pose-detection";
 import { useWorkoutStore } from "@/lib/store";
 import { RepDetector } from "@/lib/scoring/rep-detector";
 import { getExercise } from "@/lib/exercises";
 import { Landmark, JointFeedback } from "@/types";
 import { getVoiceManager, classifyCuePriority } from "@/lib/ai/voice";
-import { Loader2, Camera, CameraOff } from "lucide-react";
+import { Loader2, Camera, CameraOff, SwitchCamera } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface WebcamFeedProps {
@@ -20,6 +20,10 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     isWorkoutActive,
     isPaused,
     isRecording,
+    isCountingDown,
+    countdownSeconds,
+    setCountdownSeconds,
+    finishCountdown,
     setCurrentScore,
     setRepCount,
     setCurrentPhase,
@@ -28,8 +32,11 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     addRepResult,
     setRecordingBlob,
     settings,
+    updateSettings,
     setPoseStatus,
   } = useWorkoutStore();
+
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">(settings.cameraFacing || "user");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -37,6 +44,26 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   const repDetectorRef = useRef<RepDetector | null>(null);
   const exerciseRef = useRef(selectedExercise);
   const { setVoiceInfo } = useWorkoutStore();
+
+  // ── Countdown timer ──
+  useEffect(() => {
+    if (!isCountingDown || countdownSeconds <= 0) return;
+    const timer = setTimeout(() => {
+      const next = countdownSeconds - 1;
+      if (next <= 0) {
+        finishCountdown();
+      } else {
+        setCountdownSeconds(next);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [isCountingDown, countdownSeconds, setCountdownSeconds, finishCountdown]);
+
+  const handleFlipCamera = () => {
+    const next = cameraFacing === "user" ? "environment" : "user";
+    setCameraFacing(next);
+    updateSettings({ cameraFacing: next });
+  };
 
   // Wire VoiceManager state changes into Zustand for UI reactivity
   useEffect(() => {
@@ -161,6 +188,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   const { videoRef, canvasRef, status, drawSkeleton } = usePoseDetection({
     onFrame: handleFrame,
     enabled: true,
+    facingMode: cameraFacing,
   });
 
   useLayoutEffect(() => {
@@ -227,6 +255,42 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
       />
+
+      {/* Camera flip button */}
+      {status === "detecting" && (
+        <button
+          onClick={handleFlipCamera}
+          className={cn(
+            "absolute z-20 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center transition-all hover:bg-black/70 active:scale-95",
+            mobile ? "top-3 right-3 h-9 w-9" : "top-4 right-4 h-10 w-10"
+          )}
+          title={cameraFacing === "user" ? "Switch to back camera" : "Switch to front camera"}
+        >
+          <SwitchCamera className={cn("text-white", mobile ? "h-4 w-4" : "h-5 w-5")} />
+        </button>
+      )}
+
+      {/* Countdown overlay */}
+      {isCountingDown && countdownSeconds > 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-30">
+          <div className="text-center">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-cyan-400 mb-3">Get into position</div>
+            <div
+              key={countdownSeconds}
+              className="text-8xl md:text-9xl font-black text-white tabular-nums animate-[pulse_1s_ease-in-out]"
+              style={{ textShadow: "0 0 40px rgba(6,182,212,0.4)" }}
+            >
+              {countdownSeconds}
+            </div>
+            <div className="mt-4 w-48 mx-auto h-1.5 rounded-full bg-white/10 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full transition-all duration-1000 ease-linear"
+                style={{ width: `${((10 - countdownSeconds) / 10) * 100}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Status overlays */}
       {(status === "loading" || status === "ready") && (

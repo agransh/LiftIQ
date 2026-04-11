@@ -9,6 +9,7 @@ import "@/lib/pose/mediapipe-console-filter";
 interface UsePoseDetectionOptions {
   onFrame?: (landmarks: Landmark[]) => void;
   enabled?: boolean;
+  facingMode?: "user" | "environment";
 }
 
 function isMobileDevice(): boolean {
@@ -16,7 +17,7 @@ function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
 }
 
-export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOptions = {}) {
+export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" }: UsePoseDetectionOptions = {}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
@@ -29,18 +30,23 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
   const onFrameRef = useRef(onFrame);
   onFrameRef.current = onFrame;
 
-  const initCamera = useCallback(async () => {
+  const initCamera = useCallback(async (facing: "user" | "environment") => {
+    // Stop any existing tracks before switching
+    if (videoRef.current?.srcObject) {
+      (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+    }
+
     try {
       const mobile = isMobileDevice();
       const constraints: MediaStreamConstraints = {
         video: mobile
           ? {
-              facingMode: "user",
+              facingMode: facing,
               width: { ideal: 480 },
               height: { ideal: 640 },
             }
           : {
-              facingMode: "user",
+              facingMode: facing,
               width: { ideal: 640 },
               height: { ideal: 480 },
             },
@@ -203,13 +209,14 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
     animFrameRef.current = requestAnimationFrame(detect);
   }, []);
 
+  // Initial mount: start camera + load pose model
   useEffect(() => {
     if (!enabled) return;
 
     let mounted = true;
 
     async function start() {
-      const cameraOk = await initCamera();
+      const cameraOk = await initCamera(facingMode);
       if (!cameraOk || !mounted) return;
       const poseOk = await initPoseDetection();
       if (!poseOk || !mounted) return;
@@ -228,7 +235,16 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
       }
       poseLandmarkerRef.current?.close();
     };
-  }, [enabled, initCamera, initPoseDetection, detect]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+
+  // Camera switch: re-acquire stream when facingMode changes (model stays loaded)
+  const facingModeRef = useRef(facingMode);
+  useEffect(() => {
+    if (facingModeRef.current === facingMode) return;
+    facingModeRef.current = facingMode;
+    initCamera(facingMode);
+  }, [facingMode, initCamera]);
 
   return { videoRef, canvasRef, landmarks, status, drawSkeleton } as const;
 }

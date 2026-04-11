@@ -42,12 +42,15 @@ export default function WorkoutPage() {
     selectedExercise,
     isWorkoutActive,
     isRecording,
+    isCountingDown,
     sessionWeight,
     hasSelectedExercise,
     setSelectedExercise,
     setSessionWeight,
     setHasSelectedExercise,
-    startWorkout,
+    startCountdown,
+    clearRepResults,
+    setRecordingBlob,
   } = useWorkoutStore();
   const [showExercises, setShowExercises] = useState(false);
   const [showExerciseManager, setShowExerciseManager] = useState(false);
@@ -209,7 +212,7 @@ export default function WorkoutPage() {
             </div>
           )}
 
-          {!isWorkoutActive && !routineProgress?.isResting && (
+          {!isWorkoutActive && !isCountingDown && !routineProgress?.isResting && (
             <>
               <div className="flex items-center gap-2 px-4 pt-4">
                 <button
@@ -266,11 +269,11 @@ export default function WorkoutPage() {
               <div className="flex-1">
                 <WorkoutControls />
               </div>
-              {!isWorkoutActive && (
+              {!isWorkoutActive && !isCountingDown && (
                 <Button
                   variant="outline"
                   size="lg"
-                  onClick={() => startWorkout(true)}
+                  onClick={() => { clearRepResults(); setRecordingBlob(null); startCountdown(true); }}
                   disabled={!hasSelectedExercise || !selectedExercise}
                   className="min-h-[48px] px-4 border-white/[0.08] bg-white/[0.02] hover:bg-red-500/10 hover:border-red-500/20 disabled:opacity-40"
                   title="Record workout with form analysis"
@@ -328,11 +331,11 @@ export default function WorkoutPage() {
               >
                 <ListPlus className="h-4 w-4" /> My Exercises
               </Button>
-              {!isWorkoutActive && (
+              {!isWorkoutActive && !isCountingDown && (
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => startWorkout(true)}
+                  onClick={() => { clearRepResults(); setRecordingBlob(null); startCountdown(true); }}
                   disabled={!hasSelectedExercise || !selectedExercise}
                   className="border-white/[0.08] bg-white/[0.02] text-zinc-400 hover:text-red-400 hover:border-red-500/20 disabled:opacity-40"
                 >
