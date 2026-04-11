@@ -36,26 +36,13 @@ export const PERFECT_REP_REASON_LABELS: Record<PerfectRepReason, string> = {
   consistent_tempo: "Smooth, controlled tempo",
 };
 
-/**
- * Defines how to count reps by tracking a primary angle through a full motion
- * cycle, similar to Peloton IQ's approach.  The state machine requires the
- * angle to cross both a start and a depth threshold and validates minimum ROM
- * before counting.
- */
 export interface RepCycleConfig {
-  /** Angle keys from getCommonAngles() that drive the primary movement (averaged). */
   primaryAngles: string[];
-  /** Angle value at/above which the user is in the starting position. */
   startThreshold: number;
-  /** Angle value at/below which the user has reached depth/contraction. */
   depthThreshold: number;
-  /** Minimum angle delta (peak − valley) required for a rep to count. */
   minROM: number;
-  /** Minimum frames the angle must spend in the depth zone. */
   minDepthFrames?: number;
-  /** Minimum milliseconds between two counted reps. */
   cooldownMs?: number;
-  /** How to combine multiple primaryAngles into one tracked value (default: "average"). */
   combineMethod?: "average" | "min" | "max";
 }
 
@@ -72,7 +59,6 @@ export interface ExerciseConfig {
   };
   getCoachingCues: (angles: Record<string, number>, landmarks: Landmark[], phase: string) => string[];
   caloriesPerRep: number;
-  /** Peloton-style angle-cycle rep counting config (optional — falls back to phase-based if absent). */
   repCycle?: RepCycleConfig;
 }
 

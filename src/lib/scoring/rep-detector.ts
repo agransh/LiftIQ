@@ -6,41 +6,21 @@ const HYSTERESIS_BUFFER = 8;
 
 type CycleState = "idle" | "descending" | "at_depth" | "returning";
 
-/**
- * Peloton-style rep detector.
- *
- * When the exercise provides a `repCycle` config, reps are counted by tracking
- * the primary angle(s) through a full motion cycle with a state machine:
- *
- *   idle → descending → at_depth → returning → (count) → idle
- *
- * The state machine requires:
- *  - Angle crossing the start threshold (with hysteresis) before tracking
- *  - Reaching the depth threshold
- *  - Holding depth for a minimum number of frames
- *  - Returning to start with a validated minimum ROM
- *  - Cooldown between reps
- *
- * If `repCycle` is absent the detector falls back to phase-based counting.
- */
 export class RepDetector {
   private config: ExerciseConfig;
   private repCount = 0;
   private lastRepTime = 0;
   private angleHistory: Record<string, number>[] = [];
 
-  // Scoring / cue accumulators (shared by both engines)
   private currentIssues: JointFeedback[] = [];
   private scoreAccumulator: number[] = [];
 
-  // ── Angle-cycle state machine ──
   private cycleState: CycleState = "idle";
   private peakAngle = 0;
   private valleyAngle = 0;
   private depthFrames = 0;
   private isInverted = false;
 
-  // ── Legacy phase-based fields (fallback only) ──
   private prevPhase = "";
   private stablePhase = "";
   private phaseCounter = 0;
@@ -73,10 +53,6 @@ export class RepDetector {
     this.deepFrameCount = 0;
   }
 
-  // ────────────────────────────────────────────
-  // Angle helpers
-  // ────────────────────────────────────────────
-
   private smoothAngles(angles: Record<string, number>): Record<string, number> {
     this.angleHistory.push(angles);
     if (this.angleHistory.length > ANGLE_SMOOTHING_WINDOW) this.angleHistory.shift();
@@ -98,10 +74,6 @@ export class RepDetector {
     if (method === "max") return Math.max(...values);
     return values.reduce((a, b) => a + b, 0) / values.length;
   }
-
-  // Direction-aware threshold checks.  For a standard exercise (start HIGH,
-  // depth LOW) the angle decreases during the rep.  For an inverted exercise
-  // (start LOW, depth HIGH — e.g. jumping jacks) the angle increases.
 
   private isAtStart(angle: number, cycle: RepCycleConfig): boolean {
     return this.isInverted
@@ -133,10 +105,6 @@ export class RepDetector {
       ? angle <= cycle.startThreshold + buffer
       : angle >= cycle.startThreshold - buffer;
   }
-
-  // ────────────────────────────────────────────
-  // Angle-cycle rep counting (Peloton-style)
-  // ────────────────────────────────────────────
 
   private updateCycleRep(rawAngle: number, smoothedAngle: number, cycle: RepCycleConfig): boolean {
     const angle = smoothedAngle;
@@ -218,10 +186,6 @@ export class RepDetector {
     }
   }
 
-  // ────────────────────────────────────────────
-  // Legacy phase-based rep counting (fallback)
-  // ────────────────────────────────────────────
-
   private getDeepPhase(): string {
     const phases = this.config.phases;
     if (phases.length <= 2) return phases[phases.length - 1];
@@ -274,10 +238,6 @@ export class RepDetector {
     }
     return false;
   }
-
-  // ────────────────────────────────────────────
-  // Main update
-  // ────────────────────────────────────────────
 
   update(landmarks: Landmark[]): {
     phase: string;

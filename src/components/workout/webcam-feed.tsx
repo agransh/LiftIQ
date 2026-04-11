@@ -100,7 +100,6 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     }
   }, [isFormChecking]);
 
-  // Fresh RepDetector when workout starts so stale phase state doesn't cause ghost reps
   useEffect(() => {
     if (isWorkoutActive) {
       const config = getExercise(exerciseRef.current);
