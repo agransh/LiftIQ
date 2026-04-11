@@ -1,4 +1,4 @@
-import { WorkoutSession, DailyLog, StreakData, UserSettings, UserProfile, FoodEntry, UserExercise } from "@/types";
+import { WorkoutSession, DailyLog, StreakData, UserSettings, UserProfile, FoodEntry, UserExercise, WorkoutRoutine } from "@/types";
 import * as db from "@/lib/supabase-db";
 
 const STORAGE_KEYS = {
@@ -9,6 +9,7 @@ const STORAGE_KEYS = {
   PROFILE: "liftiq-profile",
   FOOD_LOG: "liftiq-food-log",
   USER_EXERCISES: "liftiq-user-exercises",
+  ROUTINES: "liftiq-routines",
 } as const;
 
 function getItem<T>(key: string, fallback: T): T {
@@ -246,4 +247,34 @@ export async function fetchTodayFoodCalories(): Promise<number> {
 
 export async function fetchTodayFoodEntries(): Promise<FoodEntry[]> {
   return db.dbGetTodayFoodEntries();
+}
+
+// ── Workout Routines ──────────────────────────────────────────
+
+export function getRoutines(): WorkoutRoutine[] {
+  return getItem<WorkoutRoutine[]>(STORAGE_KEYS.ROUTINES, []);
+}
+
+export async function fetchRoutines(): Promise<WorkoutRoutine[]> {
+  const routines = await db.dbGetRoutines();
+  setItem(STORAGE_KEYS.ROUTINES, routines);
+  return routines;
+}
+
+export function saveRoutine(routine: WorkoutRoutine): void {
+  const routines = getRoutines();
+  const idx = routines.findIndex((r) => r.id === routine.id);
+  if (idx >= 0) {
+    routines[idx] = routine;
+  } else {
+    routines.push(routine);
+  }
+  setItem(STORAGE_KEYS.ROUTINES, routines);
+  db.dbSaveRoutine(routine);
+}
+
+export function deleteRoutine(id: string): void {
+  const routines = getRoutines().filter((r) => r.id !== id);
+  setItem(STORAGE_KEYS.ROUTINES, routines);
+  db.dbDeleteRoutine(id);
 }

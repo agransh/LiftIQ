@@ -104,9 +104,33 @@ export interface FoodEntry {
   id: string;
   name: string;
   calories: number;
+  protein?: number;
+  carbs?: number;
+  fat?: number;
+  servingSize?: number;
+  servingUnit?: string;
+  servings?: number;
   date: string;
   timestamp: number;
   meal?: "breakfast" | "lunch" | "dinner" | "snack";
+}
+
+export interface RoutineExercise {
+  id: string;
+  name: string;
+  trackingId: string;
+  targetSets: number;
+  targetReps: number;
+  weight?: number;
+  restAfterSets: number; // seconds
+}
+
+export interface WorkoutRoutine {
+  id: string;
+  name: string;
+  exercises: RoutineExercise[];
+  createdAt: number;
+  updatedAt: number;
 }
 
 export interface UserSettings {

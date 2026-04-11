@@ -6,6 +6,7 @@ import {
   FoodEntry,
   UserExercise,
   StreakData,
+  WorkoutRoutine,
 } from "@/types";
 
 function getSupabase() {
@@ -167,14 +168,24 @@ export async function dbGetFoodLog(): Promise<FoodEntry[]> {
 
   if (!data) return [];
 
-  return data.map((d) => ({
-    id: d.id,
-    name: d.name,
-    calories: d.calories,
-    date: d.date,
-    timestamp: new Date(d.created_at).getTime(),
-    meal: d.meal,
-  }));
+  return data.map((d) => mapFoodRow(d));
+}
+
+function mapFoodRow(d: Record<string, unknown>): FoodEntry {
+  return {
+    id: d.id as string,
+    name: d.name as string,
+    calories: d.calories as number,
+    protein: d.protein != null ? Number(d.protein) : undefined,
+    carbs: d.carbs != null ? Number(d.carbs) : undefined,
+    fat: d.fat != null ? Number(d.fat) : undefined,
+    servingSize: d.serving_size != null ? Number(d.serving_size) : undefined,
+    servingUnit: d.serving_unit as string | undefined,
+    servings: d.servings != null ? Number(d.servings) : 1,
+    date: d.date as string,
+    timestamp: new Date(d.created_at as string).getTime(),
+    meal: d.meal as FoodEntry["meal"],
+  };
 }
 
 export async function dbAddFoodEntry(entry: FoodEntry): Promise<void> {
@@ -186,6 +197,12 @@ export async function dbAddFoodEntry(entry: FoodEntry): Promise<void> {
     user_id: uid,
     name: entry.name,
     calories: entry.calories,
+    protein: entry.protein,
+    carbs: entry.carbs,
+    fat: entry.fat,
+    serving_size: entry.servingSize,
+    serving_unit: entry.servingUnit,
+    servings: entry.servings ?? 1,
     date: entry.date,
     meal: entry.meal,
   });
@@ -207,7 +224,7 @@ export async function dbGetTodayFoodCalories(): Promise<number> {
     .eq("date", today);
 
   if (!data) return 0;
-  return data.reduce((sum, d) => sum + d.calories, 0);
+  return data.reduce((sum, d) => sum + (d.calories as number), 0);
 }
 
 export async function dbGetTodayFoodEntries(): Promise<FoodEntry[]> {
@@ -224,14 +241,7 @@ export async function dbGetTodayFoodEntries(): Promise<FoodEntry[]> {
 
   if (!data) return [];
 
-  return data.map((d) => ({
-    id: d.id,
-    name: d.name,
-    calories: d.calories,
-    date: d.date,
-    timestamp: new Date(d.created_at).getTime(),
-    meal: d.meal,
-  }));
+  return data.map((d) => mapFoodRow(d));
 }
 
 // ── User Exercises ────────────────────────────────────────────
@@ -346,4 +356,44 @@ export async function dbUpdateStreak(): Promise<StreakData> {
   });
 
   return streak;
+}
+
+// ── Workout Routines ──────────────────────────────────────────
+
+export async function dbGetRoutines(): Promise<WorkoutRoutine[]> {
+  const uid = await getUserId();
+  if (!uid) return [];
+
+  const { data } = await getSupabase()
+    .from("workout_routines")
+    .select("*")
+    .eq("user_id", uid)
+    .order("created_at", { ascending: true });
+
+  if (!data) return [];
+
+  return data.map((d) => ({
+    id: d.id,
+    name: d.name,
+    exercises: d.exercises as WorkoutRoutine["exercises"],
+    createdAt: new Date(d.created_at).getTime(),
+    updatedAt: new Date(d.updated_at).getTime(),
+  }));
+}
+
+export async function dbSaveRoutine(routine: WorkoutRoutine): Promise<void> {
+  const uid = await getUserId();
+  if (!uid) return;
+
+  await getSupabase().from("workout_routines").upsert({
+    id: routine.id,
+    user_id: uid,
+    name: routine.name,
+    exercises: routine.exercises,
+    updated_at: new Date().toISOString(),
+  });
+}
+
+export async function dbDeleteRoutine(id: string): Promise<void> {
+  await getSupabase().from("workout_routines").delete().eq("id", id);
 }

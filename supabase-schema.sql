@@ -70,10 +70,24 @@ create table if not exists public.food_log (
   user_id uuid references auth.users on delete cascade not null,
   name text not null,
   calories integer not null default 0,
+  protein numeric,
+  carbs numeric,
+  fat numeric,
+  serving_size numeric,
+  serving_unit text,
+  servings numeric not null default 1,
   date text not null,
   meal text,
   created_at timestamptz not null default now()
 );
+
+-- If food_log already exists, add the new columns:
+-- alter table public.food_log add column if not exists protein numeric;
+-- alter table public.food_log add column if not exists carbs numeric;
+-- alter table public.food_log add column if not exists fat numeric;
+-- alter table public.food_log add column if not exists serving_size numeric;
+-- alter table public.food_log add column if not exists serving_unit text;
+-- alter table public.food_log add column if not exists servings numeric not null default 1;
 
 alter table public.food_log enable row level security;
 
@@ -145,9 +159,38 @@ create policy "Users can update own streaks"
   on public.streaks for update
   using (auth.uid() = user_id);
 
+-- 6. Workout routines table
+create table if not exists public.workout_routines (
+  id text primary key,
+  user_id uuid references auth.users on delete cascade not null,
+  name text not null,
+  exercises jsonb not null default '[]',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.workout_routines enable row level security;
+
+create policy "Users can view own routines"
+  on public.workout_routines for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own routines"
+  on public.workout_routines for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can update own routines"
+  on public.workout_routines for update
+  using (auth.uid() = user_id);
+
+create policy "Users can delete own routines"
+  on public.workout_routines for delete
+  using (auth.uid() = user_id);
+
 -- Create indexes for common queries
 create index if not exists idx_workout_sessions_user_id on public.workout_sessions(user_id);
 create index if not exists idx_workout_sessions_start_time on public.workout_sessions(start_time);
 create index if not exists idx_food_log_user_id on public.food_log(user_id);
 create index if not exists idx_food_log_date on public.food_log(date);
 create index if not exists idx_user_exercises_user_id on public.user_exercises(user_id);
+create index if not exists idx_workout_routines_user_id on public.workout_routines(user_id);

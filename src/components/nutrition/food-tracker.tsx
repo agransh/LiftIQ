@@ -26,6 +26,7 @@ import {
   Search,
   Loader2,
   Zap,
+  Scale,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -49,14 +50,14 @@ const MEAL_OPTIONS = [
 ];
 
 const QUICK_FOODS = [
-  { name: "Banana", calories: 105 },
-  { name: "Apple", calories: 95 },
-  { name: "Chicken Breast (6oz)", calories: 280 },
-  { name: "Rice (1 cup)", calories: 206 },
-  { name: "Eggs (2)", calories: 156 },
-  { name: "Protein Shake", calories: 200 },
-  { name: "Greek Yogurt", calories: 130 },
-  { name: "Oatmeal (1 cup)", calories: 154 },
+  { name: "Banana", calories: 105, protein: 1.3, carbs: 27, fat: 0.4, servingSize: 118, servingUnit: "g" },
+  { name: "Apple", calories: 95, protein: 0.5, carbs: 25, fat: 0.3, servingSize: 182, servingUnit: "g" },
+  { name: "Chicken Breast (6oz)", calories: 280, protein: 53, carbs: 0, fat: 6, servingSize: 170, servingUnit: "g" },
+  { name: "Rice (1 cup)", calories: 206, protein: 4.3, carbs: 45, fat: 0.4, servingSize: 158, servingUnit: "g" },
+  { name: "Eggs (2)", calories: 156, protein: 13, carbs: 1.1, fat: 11, servingSize: 100, servingUnit: "g" },
+  { name: "Protein Shake", calories: 200, protein: 30, carbs: 10, fat: 3, servingSize: 350, servingUnit: "ml" },
+  { name: "Greek Yogurt", calories: 130, protein: 17, carbs: 6, fat: 4, servingSize: 170, servingUnit: "g" },
+  { name: "Oatmeal (1 cup)", calories: 154, protein: 5, carbs: 27, fat: 2.6, servingSize: 234, servingUnit: "g" },
 ];
 
 interface FoodTrackerProps {
@@ -144,9 +145,15 @@ export function FoodTracker({ compact = false }: FoodTrackerProps) {
                   <MealIcon className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                   <div className="min-w-0">
                     <div className="text-sm font-medium truncate">{entry.name}</div>
-                    {entry.meal && (
-                      <div className="text-[10px] text-muted-foreground capitalize">{entry.meal}</div>
-                    )}
+                    <div className="text-[10px] text-muted-foreground flex items-center gap-1.5">
+                      {entry.meal && <span className="capitalize">{entry.meal}</span>}
+                      {entry.servings && entry.servings !== 1 && (
+                        <span>· {entry.servings} serving{entry.servings !== 1 ? "s" : ""}</span>
+                      )}
+                      {entry.protein != null && (
+                        <span className="hidden sm:inline">· P {entry.protein}g · C {entry.carbs}g · F {entry.fat}g</span>
+                      )}
+                    </div>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-2">
@@ -198,8 +205,21 @@ export function FoodTracker({ compact = false }: FoodTrackerProps) {
 function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
   const [name, setName] = useState("");
   const [calories, setCalories] = useState("");
+  const [protein, setProtein] = useState("");
+  const [carbs, setCarbs] = useState("");
+  const [fat, setFat] = useState("");
   const [meal, setMeal] = useState<FoodEntry["meal"]>("snack");
   const [mode, setMode] = useState<"search" | "manual">("search");
+
+  // Portion state
+  const [servings, setServings] = useState("1");
+  const [servingSize, setServingSize] = useState("");
+  const [servingUnit, setServingUnit] = useState("g");
+  // Base values per serving (from USDA or quick-add)
+  const [baseCals, setBaseCals] = useState(0);
+  const [baseProtein, setBaseProtein] = useState(0);
+  const [baseCarbs, setBaseCarbs] = useState(0);
+  const [baseFat, setBaseFat] = useState(0);
 
   // USDA search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -207,6 +227,20 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFood, setSelectedFood] = useState<USDAFood | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  const updatePortionValues = useCallback((numServings: number, bCals: number, bProt: number, bCarb: number, bFat: number) => {
+    const s = Math.max(numServings, 0);
+    setCalories(Math.round(bCals * s).toString());
+    setProtein((Math.round(bProt * s * 10) / 10).toString());
+    setCarbs((Math.round(bCarb * s * 10) / 10).toString());
+    setFat((Math.round(bFat * s * 10) / 10).toString());
+  }, []);
+
+  const handleServingsChange = (val: string) => {
+    setServings(val);
+    const num = parseFloat(val) || 0;
+    updatePortionValues(num, baseCals, baseProtein, baseCarbs, baseFat);
+  };
 
   const searchUSDA = useCallback(async (query: string) => {
     if (query.trim().length < 2) {
@@ -235,17 +269,31 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
   const selectUSDAFood = (food: USDAFood) => {
     setSelectedFood(food);
     setName(food.name);
-    setCalories(food.calories.toString());
+    setBaseCals(food.calories);
+    setBaseProtein(food.protein);
+    setBaseCarbs(food.carbs);
+    setBaseFat(food.fat);
+    setServingSize(food.servingSize?.toString() || "100");
+    setServingUnit(food.servingSizeUnit || "g");
+    setServings("1");
+    updatePortionValues(1, food.calories, food.protein, food.carbs, food.fat);
     setSearchResults([]);
     setSearchQuery(food.name);
   };
 
   const handleSubmit = () => {
     if (!name.trim() || !calories) return;
+    const numServings = parseFloat(servings) || 1;
     const entry: FoodEntry = {
       id: `food-${Date.now()}`,
       name: name.trim(),
       calories: parseInt(calories) || 0,
+      protein: protein ? parseFloat(protein) : undefined,
+      carbs: carbs ? parseFloat(carbs) : undefined,
+      fat: fat ? parseFloat(fat) : undefined,
+      servingSize: servingSize ? parseFloat(servingSize) : undefined,
+      servingUnit: servingUnit || undefined,
+      servings: numServings,
       date: new Date().toISOString().split("T")[0],
       timestamp: Date.now(),
       meal,
@@ -255,9 +303,16 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
     onClose();
   };
 
-  const handleQuickAdd = (food: { name: string; calories: number }) => {
+  const handleQuickAdd = (food: typeof QUICK_FOODS[0]) => {
     setName(food.name);
-    setCalories(food.calories.toString());
+    setBaseCals(food.calories);
+    setBaseProtein(food.protein);
+    setBaseCarbs(food.carbs);
+    setBaseFat(food.fat);
+    setServingSize(food.servingSize.toString());
+    setServingUnit(food.servingUnit);
+    setServings("1");
+    updatePortionValues(1, food.calories, food.protein, food.carbs, food.fat);
     setMode("manual");
   };
 
@@ -355,7 +410,7 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
                     </div>
                     {food.servingSize && (
                       <div className="text-[10px] text-muted-foreground/60 mt-0.5">
-                        per {food.servingSize}{food.servingSizeUnit}
+                        per {food.servingSize} {food.servingSizeUnit}
                       </div>
                     )}
                   </button>
@@ -369,50 +424,34 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
               </div>
             )}
 
-            {/* Selected food details */}
+            {/* Selected food with portion controls */}
             {selectedFood && (
-              <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 space-y-2">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <div className="text-sm font-semibold capitalize">{selectedFood.name.toLowerCase()}</div>
-                    {selectedFood.servingSize && (
-                      <div className="text-[10px] text-muted-foreground">
-                        per {selectedFood.servingSize}{selectedFood.servingSizeUnit} serving
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => {
-                      setSelectedFood(null);
-                      setSearchQuery("");
-                      setName("");
-                      setCalories("");
-                    }}
-                    className="text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-                <div className="grid grid-cols-4 gap-2">
-                  <MacroBadge label="Calories" value={`${selectedFood.calories}`} unit="kcal" highlight />
-                  <MacroBadge label="Protein" value={`${selectedFood.protein}`} unit="g" />
-                  <MacroBadge label="Carbs" value={`${selectedFood.carbs}`} unit="g" />
-                  <MacroBadge label="Fat" value={`${selectedFood.fat}`} unit="g" />
-                </div>
-                {/* Editable calories override */}
-                <div>
-                  <label className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                    Adjust calories if needed
-                  </label>
-                  <input
-                    type="number"
-                    value={calories}
-                    onChange={(e) => setCalories(e.target.value)}
-                    min="0"
-                    className="w-full h-9 mt-1 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  />
-                </div>
-              </div>
+              <PortionEditor
+                name={selectedFood.name}
+                servingSize={servingSize}
+                servingUnit={servingUnit}
+                servings={servings}
+                calories={calories}
+                protein={protein}
+                carbs={carbs}
+                fat={fat}
+                baseCals={baseCals}
+                baseProtein={baseProtein}
+                baseCarbs={baseCarbs}
+                baseFat={baseFat}
+                onServingsChange={handleServingsChange}
+                onCaloriesChange={setCalories}
+                onClear={() => {
+                  setSelectedFood(null);
+                  setSearchQuery("");
+                  setName("");
+                  setCalories("");
+                  setProtein("");
+                  setCarbs("");
+                  setFat("");
+                  setServings("1");
+                }}
+              />
             )}
 
             {/* Quick-add fallback */}
@@ -438,7 +477,7 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
           </>
         ) : (
           <>
-            {/* Manual entry */}
+            {/* Manual entry with portion */}
             <input
               type="text"
               value={name}
@@ -446,14 +485,98 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
               placeholder="Food item"
               className="w-full h-11 rounded-xl bg-secondary border border-border px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
             />
-            <input
-              type="number"
-              value={calories}
-              onChange={(e) => setCalories(e.target.value)}
-              placeholder="Calories"
-              min="0"
-              className="w-full h-11 rounded-xl bg-secondary border border-border px-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-            />
+
+            {/* Serving size row */}
+            <div className="flex gap-2 items-end">
+              <div className="flex-1">
+                <label className="text-[10px] text-muted-foreground block mb-1 flex items-center gap-1">
+                  <Scale className="h-3 w-3" />
+                  Serving Size
+                </label>
+                <div className="flex gap-1.5">
+                  <input
+                    type="number"
+                    value={servingSize}
+                    onChange={(e) => setServingSize(e.target.value)}
+                    placeholder="100"
+                    min="0"
+                    className="flex-1 h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  />
+                  <select
+                    value={servingUnit}
+                    onChange={(e) => setServingUnit(e.target.value)}
+                    className="h-10 rounded-lg bg-secondary border border-border px-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                  >
+                    <option value="g">g</option>
+                    <option value="ml">ml</option>
+                    <option value="oz">oz</option>
+                    <option value="cup">cup</option>
+                    <option value="tbsp">tbsp</option>
+                    <option value="piece">piece</option>
+                  </select>
+                </div>
+              </div>
+              <div className="w-20">
+                <label className="text-[10px] text-muted-foreground block mb-1">Servings</label>
+                <input
+                  type="number"
+                  value={servings}
+                  onChange={(e) => handleServingsChange(e.target.value)}
+                  placeholder="1"
+                  min="0.25"
+                  step="0.25"
+                  className="w-full h-10 rounded-lg bg-secondary border border-border px-3 text-sm text-center text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+            </div>
+
+            {/* Nutrition inputs */}
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Calories</label>
+                <input
+                  type="number"
+                  value={calories}
+                  onChange={(e) => setCalories(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="w-full h-10 rounded-lg bg-secondary border border-border px-2 text-sm text-center text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Protein (g)</label>
+                <input
+                  type="number"
+                  value={protein}
+                  onChange={(e) => setProtein(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="w-full h-10 rounded-lg bg-secondary border border-border px-2 text-sm text-center text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Carbs (g)</label>
+                <input
+                  type="number"
+                  value={carbs}
+                  onChange={(e) => setCarbs(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="w-full h-10 rounded-lg bg-secondary border border-border px-2 text-sm text-center text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground block mb-1">Fat (g)</label>
+                <input
+                  type="number"
+                  value={fat}
+                  onChange={(e) => setFat(e.target.value)}
+                  placeholder="0"
+                  min="0"
+                  className="w-full h-10 rounded-lg bg-secondary border border-border px-2 text-sm text-center text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+            </div>
 
             {/* Quick-add in manual mode */}
             <div>
@@ -491,13 +614,123 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
   );
 }
 
+function PortionEditor({
+  name,
+  servingSize,
+  servingUnit,
+  servings,
+  calories,
+  protein,
+  carbs,
+  fat,
+  baseCals,
+  baseProtein,
+  baseCarbs,
+  baseFat,
+  onServingsChange,
+  onCaloriesChange,
+  onClear,
+}: {
+  name: string;
+  servingSize: string;
+  servingUnit: string;
+  servings: string;
+  calories: string;
+  protein: string;
+  carbs: string;
+  fat: string;
+  baseCals: number;
+  baseProtein: number;
+  baseCarbs: number;
+  baseFat: number;
+  onServingsChange: (val: string) => void;
+  onCaloriesChange: (val: string) => void;
+  onClear: () => void;
+}) {
+  const PORTION_PRESETS = [0.5, 1, 1.5, 2, 3];
+
+  return (
+    <div className="rounded-xl bg-primary/5 border border-primary/20 p-3 space-y-3">
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="text-sm font-semibold capitalize">{name.toLowerCase()}</div>
+          {servingSize && (
+            <div className="text-[10px] text-muted-foreground">
+              per {servingSize} {servingUnit} serving · {baseCals} cal base
+            </div>
+          )}
+        </div>
+        <button onClick={onClear} className="text-muted-foreground hover:text-foreground">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {/* Portion selector */}
+      <div>
+        <label className="text-[10px] text-muted-foreground block mb-1.5 flex items-center gap-1">
+          <Scale className="h-3 w-3" />
+          How many servings?
+        </label>
+        <div className="flex items-center gap-2">
+          <div className="flex gap-1 flex-wrap">
+            {PORTION_PRESETS.map((p) => (
+              <button
+                key={p}
+                onClick={() => onServingsChange(p.toString())}
+                className={cn(
+                  "px-2.5 py-1 rounded-lg text-xs font-medium border transition-colors min-w-[36px]",
+                  parseFloat(servings) === p
+                    ? "bg-primary/10 text-primary border-primary/30"
+                    : "bg-secondary/50 text-muted-foreground border-transparent hover:bg-secondary"
+                )}
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+          <input
+            type="number"
+            value={servings}
+            onChange={(e) => onServingsChange(e.target.value)}
+            min="0.25"
+            step="0.25"
+            className="w-16 h-8 rounded-lg bg-secondary border border-border px-2 text-xs text-center text-foreground focus:outline-none focus:ring-1 focus:ring-primary/50"
+          />
+        </div>
+      </div>
+
+      {/* Calculated macros */}
+      <div className="grid grid-cols-4 gap-2">
+        <MacroBadge label="Calories" value={calories} unit="kcal" highlight />
+        <MacroBadge label="Protein" value={protein} unit="g" />
+        <MacroBadge label="Carbs" value={carbs} unit="g" />
+        <MacroBadge label="Fat" value={fat} unit="g" />
+      </div>
+
+      {/* Override calories */}
+      <div>
+        <label className="text-[10px] text-muted-foreground">
+          Adjust calories if needed
+        </label>
+        <input
+          type="number"
+          value={calories}
+          onChange={(e) => onCaloriesChange(e.target.value)}
+          min="0"
+          className="w-full h-9 mt-1 rounded-lg bg-secondary border border-border px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+        />
+      </div>
+    </div>
+  );
+}
+
 function MacroBadge({ label, value, unit, highlight }: { label: string; value: string; unit: string; highlight?: boolean }) {
   return (
     <div className={cn(
       "text-center rounded-lg py-1.5 px-1",
       highlight ? "bg-primary/10" : "bg-secondary/50"
     )}>
-      <div className={cn("text-sm font-bold tabular-nums", highlight && "text-primary")}>{value}</div>
+      <div className={cn("text-sm font-bold tabular-nums", highlight && "text-primary")}>{value || "0"}</div>
       <div className="text-[9px] text-muted-foreground">{unit}</div>
       <div className="text-[9px] text-muted-foreground">{label}</div>
     </div>
