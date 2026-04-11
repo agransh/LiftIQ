@@ -1,18 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useWorkoutStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-import { Repeat, Timer, TrendingUp } from "lucide-react";
+import { Repeat, Timer, TrendingUp, Star } from "lucide-react";
 
 function getScoreColor(s: number) { return s >= 85 ? "text-emerald-400" : s >= 65 ? "text-amber-400" : "text-rose-400"; }
 function getBarColor(s: number) { return s >= 85 ? "bg-emerald-400" : s >= 65 ? "bg-amber-400" : "bg-rose-400"; }
 function getStroke(s: number) { return s >= 85 ? "#34d399" : s >= 65 ? "#fbbf24" : "#f43f5e"; }
 
 export function LiveMetrics() {
-  const { currentScore, repCount, currentPhase, isWorkoutActive, sessionStartTime } = useWorkoutStore();
+  const { currentScore, repCount, currentPhase, isWorkoutActive, sessionStartTime, bestRepScore, bestRepIndex } = useWorkoutStore();
   const [elapsed, setElapsed] = useState(0);
+  const [scoreFlash, setScoreFlash] = useState(false);
+  const prevScore = useRef(currentScore);
+
+  useEffect(() => {
+    if (Math.abs(currentScore - prevScore.current) > 10) {
+      setScoreFlash(true);
+      const t = setTimeout(() => setScoreFlash(false), 400);
+      prevScore.current = currentScore;
+      return () => clearTimeout(t);
+    }
+    prevScore.current = currentScore;
+  }, [currentScore]);
 
   const score = Math.min(100, Math.max(0, currentScore));
   const circ = 2 * Math.PI * 48;
@@ -49,7 +61,11 @@ export function LiveMetrics() {
             />
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
-            <span className={cn("text-3xl font-black tabular-nums tracking-tight", getScoreColor(score))}>
+            <span className={cn(
+              "text-3xl font-black tabular-nums tracking-tight transition-transform duration-300",
+              getScoreColor(score),
+              scoreFlash && "scale-110"
+            )}>
               {Math.round(score)}
             </span>
             <span className="text-[9px] font-semibold text-zinc-600 uppercase tracking-[0.2em] mt-0.5">Score</span>
@@ -85,6 +101,18 @@ export function LiveMetrics() {
       {repCount > 0 && (
         <div className="glass-card rounded-xl p-3.5">
           <AvgScore />
+        </div>
+      )}
+
+      {bestRepIndex >= 0 && (
+        <div className="glass-card rounded-xl p-3.5">
+          <div className="flex items-center gap-1.5 text-[9px] text-zinc-600 uppercase tracking-[0.15em] mb-1.5">
+            <Star className="h-3 w-3 text-amber-400" /> Best Rep
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={cn("text-xl font-bold tabular-nums", getScoreColor(bestRepScore))}>{bestRepScore}</span>
+            <span className="text-xs text-zinc-600">Rep #{bestRepIndex + 1}</span>
+          </div>
         </div>
       )}
     </div>

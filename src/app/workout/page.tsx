@@ -11,6 +11,8 @@ import { LiveMetrics } from "@/components/workout/live-metrics";
 import { CoachingCues } from "@/components/workout/coaching-cues";
 import { MobileWorkoutHUD } from "@/components/workout/mobile-hud";
 import { PostWorkoutSummary } from "@/components/workout/post-workout-summary";
+import { PerfectRepBanner } from "@/components/workout/perfect-rep-banner";
+import { AICoachBadge } from "@/components/workout/ai-coach-badge";
 import { ExerciseManager } from "@/components/workout/exercise-manager";
 import { RoutineBuilder } from "@/components/workout/routine-builder";
 import {
@@ -371,6 +373,7 @@ export default function WorkoutPage() {
                   <ExerciseSelector onSelect={() => setSelectedUserExercise(null)} />
                 </GlassCard>
               )}
+              <AICoachBadge />
               <GlassCard className="p-5">
                 <WorkoutControls />
               </GlassCard>
@@ -382,6 +385,7 @@ export default function WorkoutPage() {
         </div>
       </div>
 
+      <PerfectRepBanner />
       {lastSession && <PostWorkoutSummary />}
       {showExerciseManager && (
         <ExerciseManager

@@ -42,6 +42,12 @@ interface WorkoutState {
   addRepResult: (rep: RepResult) => void;
   clearRepResults: () => void;
 
+  // Perfect rep tracking
+  bestRepScore: number;
+  bestRepIndex: number;
+  perfectRepAchieved: boolean;
+  dismissPerfectRep: () => void;
+
   // Recording
   recordingBlob: Blob | null;
   setRecordingBlob: (blob: Blob | null) => void;
@@ -100,8 +106,24 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
   setCurrentIssues: (issues) => set({ currentIssues: issues }),
 
   repResults: [],
-  addRepResult: (rep) => set((state) => ({ repResults: [...state.repResults, rep] })),
-  clearRepResults: () => set({ repResults: [] }),
+  addRepResult: (rep) =>
+    set((state) => {
+      const newResults = [...state.repResults, rep];
+      const newIndex = newResults.length - 1;
+      const isBest = rep.score > state.bestRepScore;
+      return {
+        repResults: newResults,
+        ...(isBest
+          ? { bestRepScore: rep.score, bestRepIndex: newIndex, perfectRepAchieved: rep.score >= 90 }
+          : {}),
+      };
+    }),
+  clearRepResults: () => set({ repResults: [], bestRepScore: 0, bestRepIndex: -1, perfectRepAchieved: false }),
+
+  bestRepScore: 0,
+  bestRepIndex: -1,
+  perfectRepAchieved: false,
+  dismissPerfectRep: () => set({ perfectRepAchieved: false }),
 
   recordingBlob: null,
   setRecordingBlob: (blob) => set({ recordingBlob: blob }),

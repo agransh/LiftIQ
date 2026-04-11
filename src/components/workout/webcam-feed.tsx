@@ -6,7 +6,7 @@ import { useWorkoutStore } from "@/lib/store";
 import { RepDetector } from "@/lib/scoring/rep-detector";
 import { getExercise } from "@/lib/exercises";
 import { Landmark, JointFeedback } from "@/types";
-import { getVoiceProvider } from "@/lib/ai/voice";
+import { getVoiceProvider, getCuePriority } from "@/lib/ai/voice";
 import { Loader2, Camera, CameraOff } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -107,9 +107,14 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         addRepResult(result.repResult);
       }
 
-      if (settings.voiceEnabled && result.cues.length > 0) {
+      if (settings.voiceEnabled) {
         const voice = getVoiceProvider();
-        voice.speak(result.cues[0]);
+        for (const cue of result.cues) {
+          voice.speak(cue, getCuePriority(cue));
+        }
+        if (result.repCompleted) {
+          voice.speakEncouragement(result.repCount);
+        }
       }
 
       const config = getExercise(exerciseRef.current);

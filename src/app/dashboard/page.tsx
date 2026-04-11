@@ -11,8 +11,8 @@ import { FoodTracker } from "@/components/nutrition/food-tracker";
 import { getSessions, getDailyLogs, getStreakData, getTodayFoodCalories, getFoodLog, getUserProfile } from "@/lib/storage";
 import { WorkoutSession, DailyLog, StreakData, FoodEntry, UserProfile } from "@/types";
 import { getGoalLabel } from "@/lib/calories";
-import { BarChart3, Trophy, Flame, Target, Repeat, TrendingUp, Calendar, Zap, UtensilsCrossed } from "lucide-react";
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from "recharts";
+import { BarChart3, Trophy, Flame, Target, Repeat, TrendingUp, Calendar, Zap, UtensilsCrossed, AlertTriangle, Star, Activity } from "lucide-react";
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area, PieChart, Pie, Cell } from "recharts";
 import { cn } from "@/lib/utils";
 
 const TT: React.CSSProperties = {
@@ -55,6 +55,44 @@ export default function DashboardPage() {
   for (const e of foodLog) foodCalsByDay[e.date] = (foodCalsByDay[e.date] || 0) + e.calories;
   const caloriesPerDay = Object.entries(foodCalsByDay).sort(([a], [b]) => a.localeCompare(b)).slice(-14).map(([d, c]) => ({ date: d.slice(5), calories: c }));
 
+  // Advanced analytics data
+  const allRepScores = sessions.flatMap(s => s.reps.map(r => r.score));
+  const scoreDistribution = (() => {
+    const buckets = [
+      { range: "0-40", count: 0, fill: "#f43f5e" },
+      { range: "41-60", count: 0, fill: "#f97316" },
+      { range: "61-80", count: 0, fill: "#fbbf24" },
+      { range: "81-90", count: 0, fill: "#34d399" },
+      { range: "91-100", count: 0, fill: "#06b6d4" },
+    ];
+    for (const s of allRepScores) {
+      if (s <= 40) buckets[0].count++;
+      else if (s <= 60) buckets[1].count++;
+      else if (s <= 80) buckets[2].count++;
+      else if (s <= 90) buckets[3].count++;
+      else buckets[4].count++;
+    }
+    return buckets.filter(b => b.count > 0);
+  })();
+
+  const mistakeFrequency = (() => {
+    const counts: Record<string, number> = {};
+    for (const s of sessions) {
+      for (const r of s.reps) {
+        for (const iss of r.issues) {
+          if (iss.message) counts[iss.message] = (counts[iss.message] || 0) + 1;
+        }
+      }
+    }
+    return Object.entries(counts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 6)
+      .map(([name, count]) => ({ name: name.length > 25 ? name.slice(0, 22) + "..." : name, count }));
+  })();
+
+  const perfectReps = allRepScores.filter(s => s >= 90).length;
+  const totalAllReps = allRepScores.length;
+
   const hasData = sessions.length > 0;
   const hasAny = hasData || foodLog.length > 0;
 
@@ -77,11 +115,12 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-6">
             {/* ── Stat tiles ── */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <MetricTile icon={<Repeat className="h-4 w-4" />} label="Total Reps" value={totalReps.toLocaleString()} />
               <MetricTile icon={<Target className="h-4 w-4" />} label="Avg Score" value={hasData ? `${avgScore}` : "—"} accent={avgScore >= 85 ? "text-emerald-400" : avgScore >= 65 ? "text-amber-400" : hasData ? "text-rose-400" : "text-zinc-600"} />
               <MetricTile icon={<Zap className="h-4 w-4" />} label="Streak" value={`${streak.currentStreak}d`} accent="text-cyan-400" />
               <MetricTile icon={<Trophy className="h-4 w-4" />} label="Best Score" value={hasData ? `${bestScore}` : "—"} accent={hasData ? "text-emerald-400" : "text-zinc-600"} />
+              <MetricTile icon={<Star className="h-4 w-4" />} label="Perfect Reps" value={hasData ? `${perfectReps}` : "—"} accent="text-amber-400" />
             </div>
 
             {/* ── Calorie + Streak row ── */}
@@ -180,6 +219,42 @@ export default function DashboardPage() {
                         <Tooltip contentStyle={TT} formatter={(v) => [`${v ?? ""}`, "Score"]} />
                         <Line type="monotone" dataKey="score" stroke="#06b6d4" strokeWidth={2} dot={{ fill: "#06b6d4", r: 3, stroke: "#030305", strokeWidth: 2 }} activeDot={{ r: 5 }} />
                       </LineChart>
+                    </ResponsiveContainer>
+                  </ChartCard>
+                )}
+              </div>
+            )}
+
+            {/* ── Advanced Analytics ── */}
+            {hasData && (mistakeFrequency.length > 0 || scoreDistribution.length > 0) && (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {scoreDistribution.length > 0 && (
+                  <ChartCard title="Score Distribution" icon={<Activity className="h-4 w-4 text-cyan-400" />}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={scoreDistribution} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={G} vertical={false} />
+                        <XAxis dataKey="range" stroke={A} tick={{ fontSize: 10, fill: A }} tickLine={false} axisLine={{ stroke: G }} />
+                        <YAxis stroke={A} tick={{ fontSize: 10, fill: A }} tickLine={false} axisLine={{ stroke: G }} width={32} />
+                        <Tooltip contentStyle={TT} formatter={(v) => [`${v ?? ""}`, "Reps"]} />
+                        <Bar dataKey="count" radius={[4, 4, 0, 0]} maxBarSize={36}>
+                          {scoreDistribution.map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.fill} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartCard>
+                )}
+                {mistakeFrequency.length > 0 && (
+                  <ChartCard title="Common Mistakes" icon={<AlertTriangle className="h-4 w-4 text-amber-400" />}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={mistakeFrequency} layout="vertical" margin={{ top: 8, right: 16, left: 8, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke={G} horizontal={false} />
+                        <XAxis type="number" stroke={A} tick={{ fontSize: 10, fill: A }} tickLine={false} axisLine={{ stroke: G }} />
+                        <YAxis type="category" dataKey="name" stroke={A} tick={{ fontSize: 9, fill: A }} tickLine={false} axisLine={{ stroke: G }} width={100} />
+                        <Tooltip contentStyle={TT} formatter={(v) => [`${v ?? ""}`, "Times"]} />
+                        <Bar dataKey="count" fill="#f59e0b" radius={[0, 4, 4, 0]} maxBarSize={24} />
+                      </BarChart>
                     </ResponsiveContainer>
                   </ChartCard>
                 )}

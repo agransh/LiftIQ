@@ -54,6 +54,23 @@ export function WorkoutControls() {
 
     const recordingId = isRecording ? `rec-${now}` : undefined;
 
+    const bestIdx = repResults.length > 0
+      ? repResults.reduce((best, r, i) => (r.score > repResults[best].score ? i : best), 0)
+      : -1;
+
+    const allIssues = repResults.flatMap((r) => r.issues);
+    const issueCounts: Record<string, number> = {};
+    for (const iss of allIssues) if (iss.message) issueCounts[iss.message] = (issueCounts[iss.message] || 0) + 1;
+    const mistakeSummary = Object.entries(issueCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([issue, count]) => ({ issue, count }));
+
+    const scoreTimeline = repResults.map((r) => ({
+      time: r.timestamp - (sessionStartTime || now),
+      score: r.score,
+    }));
+
     const session: WorkoutSession = {
       id: `session-${now}`,
       exercise: selectedExercise,
@@ -66,6 +83,10 @@ export function WorkoutControls() {
       caloriesBurned: Math.round(caloriesBurned * 10) / 10,
       isRecorded: isRecording,
       recordingId,
+      bestRepIndex: bestIdx,
+      bestRepScore: bestIdx >= 0 ? repResults[bestIdx].score : 0,
+      scoreTimeline,
+      mistakeSummary,
     };
 
     try {

@@ -64,6 +64,10 @@ export interface WorkoutSession {
   caloriesBurned: number;
   isRecorded?: boolean;
   recordingId?: string;
+  bestRepIndex?: number;
+  bestRepScore?: number;
+  scoreTimeline?: { time: number; score: number }[];
+  mistakeSummary?: { issue: string; count: number }[];
 }
 
 export interface DailyLog {

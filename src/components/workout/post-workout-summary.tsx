@@ -1,30 +1,35 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useWorkoutStore } from "@/lib/store";
 import { generateWorkoutFeedback } from "@/lib/ai/feedback";
+import { getExplanationsForIssues } from "@/lib/ai/explainer";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/ui/glass-card";
-import { motion } from "framer-motion";
-import { Trophy, Target, Repeat, Flame, TrendingUp, X, AlertTriangle, Sparkles, CheckCircle2 } from "lucide-react";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+import { motion, AnimatePresence } from "framer-motion";
+import { Trophy, Target, Repeat, Flame, TrendingUp, X, AlertTriangle, Sparkles, CheckCircle2, MessageCircle, Star } from "lucide-react";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceDot } from "recharts";
 import { cn } from "@/lib/utils";
 
 function scoreClass(s: number) { return s >= 85 ? "text-emerald-400" : s >= 65 ? "text-amber-400" : "text-rose-400"; }
 
 export function PostWorkoutSummary() {
   const { lastSession, setLastSession } = useWorkoutStore();
+  const [showExplanations, setShowExplanations] = useState(false);
+
   if (!lastSession) return null;
 
   const { reps, totalScore, caloriesBurned, exercise, startTime, endTime } = lastSession;
-  const bestScore = reps.length > 0 ? Math.max(...reps.map(r => r.score)) : 0;
+  const bestRepIndex = lastSession.bestRepIndex ?? (reps.length > 0 ? reps.reduce((b, r, i) => (r.score > reps[b].score ? i : b), 0) : -1);
+  const bestRepScore = bestRepIndex >= 0 ? reps[bestRepIndex].score : 0;
   const allIssues = reps.flatMap(r => r.issues);
   const issueCounts: Record<string, number> = {};
   for (const issue of allIssues) if (issue.message) issueCounts[issue.message] = (issueCounts[issue.message] || 0) + 1;
   const topMistakes = Object.entries(issueCounts).sort(([, a], [, b]) => b - a).slice(0, 5);
-  const chartData = reps.map((r, i) => ({ rep: i + 1, score: r.score }));
+  const chartData = reps.map((r, i) => ({ rep: i + 1, score: r.score, isBest: i === bestRepIndex }));
   const feedback = generateWorkoutFeedback({ exercise, reps, avgScore: totalScore, duration: endTime ? Math.floor((endTime - startTime) / 1000) : 0 });
   const displayExercise = lastSession.exerciseName || exercise.charAt(0).toUpperCase() + exercise.slice(1).replace("-", " ");
+  const explanations = getExplanationsForIssues(allIssues, exercise);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -63,7 +68,7 @@ export function PostWorkoutSummary() {
               {[
                 { icon: <Repeat className="h-3.5 w-3.5" />, label: "Reps", value: `${reps.length}` },
                 { icon: <Target className="h-3.5 w-3.5" />, label: "Avg Score", value: `${totalScore}`, cls: scoreClass(totalScore) },
-                { icon: <TrendingUp className="h-3.5 w-3.5" />, label: "Best Rep", value: `${bestScore}`, cls: scoreClass(bestScore) },
+                { icon: <Star className="h-3.5 w-3.5" />, label: "Best Rep", value: `${bestRepScore}`, cls: scoreClass(bestRepScore) },
                 { icon: <Flame className="h-3.5 w-3.5" />, label: "Calories", value: `${caloriesBurned}` },
               ].map((s, i) => (
                 <motion.div key={s.label} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }} className="glass-card rounded-xl p-3 text-center">
@@ -73,6 +78,22 @@ export function PostWorkoutSummary() {
               ))}
             </div>
 
+            {/* Best rep highlight */}
+            {bestRepScore >= 90 && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-rose-500/10 border border-amber-500/20 px-4 py-3"
+              >
+                <Flame className="h-5 w-5 text-amber-400 shrink-0" />
+                <div>
+                  <span className="text-sm font-bold text-amber-300">Perfect Rep #{bestRepIndex + 1}</span>
+                  <span className="text-xs text-amber-400/70 ml-2">Score {bestRepScore}/100</span>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Score per rep chart with best rep highlighted */}
             {chartData.length > 1 && (
               <div>
                 <h3 className="text-sm font-bold text-zinc-400 mb-2.5">Score per Rep</h3>
@@ -84,12 +105,16 @@ export function PostWorkoutSummary() {
                       <YAxis domain={[0, 100]} stroke="#52525b" fontSize={10} tickLine={false} axisLine={false} width={32} />
                       <Tooltip contentStyle={{ background: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", fontSize: "11px", backdropFilter: "blur(12px)" }} formatter={(v) => [`${v ?? "—"}`, "Score"]} labelFormatter={(l) => `Rep ${l}`} />
                       <Line type="monotone" dataKey="score" stroke="#06b6d4" strokeWidth={2} dot={{ fill: "#06b6d4", r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: "#06b6d4", stroke: "#030305", strokeWidth: 2 }} />
+                      {bestRepIndex >= 0 && (
+                        <ReferenceDot x={bestRepIndex + 1} y={bestRepScore} r={7} fill="#f59e0b" stroke="#030305" strokeWidth={2} />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 </div></GlassCard>
               </div>
             )}
 
+            {/* Common Issues */}
             {topMistakes.length > 0 && (
               <div>
                 <h3 className="text-sm font-bold text-zinc-400 mb-2.5">Common Issues</h3>
@@ -102,10 +127,51 @@ export function PostWorkoutSummary() {
               </div>
             )}
 
+            {/* AI Coach Analysis */}
             <div>
               <h3 className="text-sm font-bold text-zinc-400 mb-2.5 flex items-center gap-2"><Sparkles className="h-4 w-4 text-cyan-400" />AI Coach Analysis</h3>
               <GlassCard glow className="p-4"><p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">{feedback}</p></GlassCard>
             </div>
+
+            {/* Explain My Mistakes */}
+            {explanations.length > 0 && (
+              <div>
+                <button
+                  onClick={() => setShowExplanations(!showExplanations)}
+                  className="flex items-center gap-2 text-sm font-bold text-cyan-400 hover:text-cyan-300 transition-colors mb-2.5"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  {showExplanations ? "Hide Explanations" : "Explain My Mistakes"}
+                </button>
+                <AnimatePresence>
+                  {showExplanations && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: "auto" }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="space-y-2 overflow-hidden"
+                    >
+                      {explanations.map((exp, i) => (
+                        <motion.div
+                          key={exp.issue}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.05 }}
+                        >
+                          <GlassCard className="p-4">
+                            <div className="text-xs font-bold text-amber-400 mb-1.5 flex items-center gap-1.5">
+                              <AlertTriangle className="h-3 w-3" />
+                              {exp.issue}
+                            </div>
+                            <p className="text-sm text-zinc-300 leading-relaxed">{exp.explanation}</p>
+                          </GlassCard>
+                        </motion.div>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            )}
 
             <button onClick={() => setLastSession(null)} className="w-full rounded-2xl bg-gradient-to-r from-cyan-500 via-blue-500 to-cyan-400 py-3.5 text-base font-bold text-white transition-all hover:shadow-[0_0_32px_-4px_rgba(6,182,212,0.4)] hover:brightness-110 active:scale-[0.98]">
               Done
