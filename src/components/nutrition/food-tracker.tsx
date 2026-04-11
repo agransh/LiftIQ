@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface USDAFood {
+interface FoodSearchItem {
   fdcId: number;
   name: string;
   brand: string | null;
@@ -187,14 +187,14 @@ export function FoodTracker({ compact = false }: FoodTrackerProps) {
 
       <div className="text-center pt-1">
         <span className="text-[10px] text-muted-foreground/50">
-          Nutritional data provided by{" "}
+          Food data from{" "}
           <a
             href="https://fdc.nal.usda.gov/"
             target="_blank"
             rel="noopener noreferrer"
             className="underline hover:text-muted-foreground/70"
           >
-            USDA FoodData Central
+            FoodData Central (USDA)
           </a>
         </span>
       </div>
@@ -215,17 +215,16 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
   const [servings, setServings] = useState("1");
   const [servingSize, setServingSize] = useState("");
   const [servingUnit, setServingUnit] = useState("g");
-  // Base values per serving (from USDA or quick-add)
+  // Base values per serving (search result or quick-add)
   const [baseCals, setBaseCals] = useState(0);
   const [baseProtein, setBaseProtein] = useState(0);
   const [baseCarbs, setBaseCarbs] = useState(0);
   const [baseFat, setBaseFat] = useState(0);
 
-  // USDA search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<USDAFood[]>([]);
+  const [searchResults, setSearchResults] = useState<FoodSearchItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [selectedFood, setSelectedFood] = useState<USDAFood | null>(null);
+  const [selectedFood, setSelectedFood] = useState<FoodSearchItem | null>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const updatePortionValues = useCallback((numServings: number, bCals: number, bProt: number, bCarb: number, bFat: number) => {
@@ -242,7 +241,7 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
     updatePortionValues(num, baseCals, baseProtein, baseCarbs, baseFat);
   };
 
-  const searchUSDA = useCallback(async (query: string) => {
+  const searchFoodDatabase = useCallback(async (query: string) => {
     if (query.trim().length < 2) {
       setSearchResults([]);
       return;
@@ -263,10 +262,10 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
     setSearchQuery(val);
     setSelectedFood(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => searchUSDA(val), 350);
+    debounceRef.current = setTimeout(() => searchFoodDatabase(val), 350);
   };
 
-  const selectUSDAFood = (food: USDAFood) => {
+  const selectFoodResult = (food: FoodSearchItem) => {
     setSelectedFood(food);
     setName(food.name);
     setBaseCals(food.calories);
@@ -337,7 +336,7 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
             )}
           >
             <Search className="h-3 w-3" />
-            USDA Search
+            Food Search
           </button>
           <button
             onClick={() => setMode("manual")}
@@ -381,7 +380,7 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
                 type="text"
                 value={searchQuery}
                 onChange={(e) => handleSearchInput(e.target.value)}
-                placeholder="Search USDA food database..."
+                placeholder="Search foods..."
                 autoFocus
                 className="w-full h-11 rounded-xl bg-secondary border border-border pl-10 pr-4 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
               />
@@ -396,7 +395,7 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
                 {searchResults.map((food) => (
                   <button
                     key={food.fdcId}
-                    onClick={() => selectUSDAFood(food)}
+                    onClick={() => selectFoodResult(food)}
                     className="w-full text-left rounded-md px-3 py-2.5 hover:bg-primary/10 active:bg-primary/15 transition-colors"
                   >
                     <div className="text-sm font-medium truncate capitalize">
@@ -606,7 +605,7 @@ function AddFoodForm({ onClose, onAdded }: { onClose: () => void; onAdded: () =>
 
         <div className="text-center">
           <span className="text-[9px] text-muted-foreground/50">
-            Nutrition data powered by USDA FoodData Central
+            Food data from FoodData Central (USDA)
           </span>
         </div>
       </CardContent>

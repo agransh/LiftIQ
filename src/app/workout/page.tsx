@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/layout/navbar";
 import { WebcamFeed } from "@/components/workout/webcam-feed";
+import { ExerciseCameraPlaceholder } from "@/components/workout/exercise-camera-placeholder";
 import { ExerciseSelector } from "@/components/workout/exercise-selector";
 import { WorkoutControls } from "@/components/workout/workout-controls";
 import { LiveMetrics } from "@/components/workout/live-metrics";
@@ -40,8 +41,10 @@ export default function WorkoutPage() {
     isWorkoutActive,
     isRecording,
     sessionWeight,
+    hasSelectedExercise,
     setSelectedExercise,
     setSessionWeight,
+    setHasSelectedExercise,
     startWorkout,
   } = useWorkoutStore();
   const [showExercises, setShowExercises] = useState(false);
@@ -60,21 +63,25 @@ export default function WorkoutPage() {
 
   const exerciseName =
     selectedUserExercise?.name ||
-    selectedExercise.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+    (selectedExercise
+      ? selectedExercise
+          .split("-")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ")
+      : "Choose exercise");
   const weightLabel = selectedUserExercise?.weight ?? sessionWeight;
 
   const handleSelectUserExercise = (ex: UserExercise) => {
     setSelectedUserExercise(ex);
-    if (ex.trackingId !== "custom") setSelectedExercise(ex.trackingId);
+    setSelectedExercise(ex.trackingId);
+    setHasSelectedExercise(true);
     if (ex.weight) setSessionWeight(ex.weight);
   };
 
   const handleStartRoutine = (routine: WorkoutRoutine) => {
     if (routine.exercises.length === 0) return;
     const firstEx = routine.exercises[0];
-    if (firstEx.trackingId !== "custom") {
-      setSelectedExercise(firstEx.trackingId);
-    }
+    setSelectedExercise(firstEx.trackingId);
     if (firstEx.weight) {
       setSessionWeight(firstEx.weight);
     }
@@ -85,6 +92,7 @@ export default function WorkoutPage() {
       isResting: false,
       completed: false,
     });
+    setHasSelectedExercise(true);
   };
 
   const currentRoutineExercise: RoutineExercise | null =
@@ -173,8 +181,12 @@ export default function WorkoutPage() {
 
       {/* ─── MOBILE ─── */}
       <div className="md:hidden flex flex-col h-[100dvh]">
-        <div className="relative flex-1 min-h-0">
-          <WebcamFeed mobile />
+        <div className="relative flex-1 min-h-0 flex flex-col">
+          {hasSelectedExercise ? (
+            <WebcamFeed mobile />
+          ) : (
+            <ExerciseCameraPlaceholder mobile />
+          )}
           <MobileWorkoutHUD />
           <MobileCoachingToast />
         </div>
@@ -257,7 +269,8 @@ export default function WorkoutPage() {
                   variant="outline"
                   size="lg"
                   onClick={() => startWorkout(true)}
-                  className="min-h-[48px] px-4 border-white/[0.08] bg-white/[0.02] hover:bg-red-500/10 hover:border-red-500/20"
+                  disabled={!hasSelectedExercise || !selectedExercise}
+                  className="min-h-[48px] px-4 border-white/[0.08] bg-white/[0.02] hover:bg-red-500/10 hover:border-red-500/20 disabled:opacity-40"
                   title="Record workout with form analysis"
                 >
                   <Video className="h-4 w-4 text-red-400" />
@@ -318,7 +331,8 @@ export default function WorkoutPage() {
                   variant="outline"
                   size="sm"
                   onClick={() => startWorkout(true)}
-                  className="border-white/[0.08] bg-white/[0.02] text-zinc-400 hover:text-red-400 hover:border-red-500/20"
+                  disabled={!hasSelectedExercise || !selectedExercise}
+                  className="border-white/[0.08] bg-white/[0.02] text-zinc-400 hover:text-red-400 hover:border-red-500/20 disabled:opacity-40"
                 >
                   <Video className="h-4 w-4 text-red-400" /> Record
                 </Button>
@@ -336,7 +350,7 @@ export default function WorkoutPage() {
               >
                 {isWorkoutActive && <div className="accent-line" />}
                 <div className="bg-[#040408]">
-                  <WebcamFeed />
+                  {hasSelectedExercise ? <WebcamFeed /> : <ExerciseCameraPlaceholder />}
                 </div>
               </div>
               <CoachingCues />

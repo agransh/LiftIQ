@@ -42,6 +42,8 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     if (config) {
       repDetectorRef.current = new RepDetector(config);
       exerciseRef.current = selectedExercise;
+    } else {
+      repDetectorRef.current = null;
     }
   }, [selectedExercise]);
 

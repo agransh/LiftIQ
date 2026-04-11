@@ -9,6 +9,9 @@ interface WorkoutState {
   // Exercise
   selectedExercise: string;
   setSelectedExercise: (exercise: string) => void;
+  /** True after user picks an exercise (grid, My Exercises, or routine) — gates camera + start */
+  hasSelectedExercise: boolean;
+  setHasSelectedExercise: (value: boolean) => void;
 
   // Workout session
   isWorkoutActive: boolean;
@@ -60,8 +63,10 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
   poseStatus: "loading",
   setPoseStatus: (status) => set({ poseStatus: status }),
 
-  selectedExercise: "squat",
+  selectedExercise: "",
   setSelectedExercise: (exercise) => set({ selectedExercise: exercise }),
+  hasSelectedExercise: false,
+  setHasSelectedExercise: (value) => set({ hasSelectedExercise: value }),
 
   isWorkoutActive: false,
   isPaused: false,

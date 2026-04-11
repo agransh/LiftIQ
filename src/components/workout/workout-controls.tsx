@@ -14,6 +14,7 @@ export function WorkoutControls() {
     isPaused,
     isRecording,
     selectedExercise,
+    hasSelectedExercise,
     sessionStartTime,
     sessionWeight,
     repResults,
@@ -33,6 +34,7 @@ export function WorkoutControls() {
   } = useWorkoutStore();
 
   const handleStart = () => {
+    if (!hasSelectedExercise || !selectedExercise) return;
     clearRepResults();
     setRecordingBlob(null);
     startWorkout();
@@ -123,7 +125,8 @@ export function WorkoutControls() {
           <Button
             onClick={handleStart}
             size="lg"
-            className="w-full min-h-[48px] rounded-xl shadow-md shadow-primary/15 transition-all hover:shadow-lg hover:shadow-primary/20 hover:brightness-105"
+            disabled={!hasSelectedExercise || !selectedExercise}
+            className="w-full min-h-[48px] rounded-xl shadow-md shadow-primary/15 transition-all hover:shadow-lg hover:shadow-primary/20 hover:brightness-105 disabled:opacity-50"
           >
             <Play className="h-4 w-4" />
             Start

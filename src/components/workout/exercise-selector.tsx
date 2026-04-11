@@ -17,7 +17,8 @@ const exerciseIcons: Record<string, React.ComponentType<{ className?: string }>>
 interface ExerciseSelectorProps { onSelect?: () => void; }
 
 export function ExerciseSelector({ onSelect }: ExerciseSelectorProps) {
-  const { selectedExercise, setSelectedExercise, isWorkoutActive } = useWorkoutStore();
+  const { selectedExercise, setSelectedExercise, setHasSelectedExercise, isWorkoutActive } =
+    useWorkoutStore();
 
   return (
     <div className="space-y-3">
@@ -33,7 +34,13 @@ export function ExerciseSelector({ onSelect }: ExerciseSelectorProps) {
           return (
             <button
               key={exercise.id}
-              onClick={() => { if (!isWorkoutActive) { setSelectedExercise(exercise.id); onSelect?.(); } }}
+              onClick={() => {
+                if (!isWorkoutActive) {
+                  setSelectedExercise(exercise.id);
+                  setHasSelectedExercise(true);
+                  onSelect?.();
+                }
+              }}
               disabled={isWorkoutActive}
               className={cn(
                 "flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all text-left min-h-[40px]",
