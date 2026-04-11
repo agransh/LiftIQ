@@ -10,7 +10,7 @@ export const pushupConfig: ExerciseConfig = {
   name: "Push-Up",
   description: "Start in a plank, lower chest to the ground, push back up.",
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_ELBOW, L.RIGHT_ELBOW, L.LEFT_WRIST, L.RIGHT_WRIST, L.LEFT_HIP, L.RIGHT_HIP],
-  phases: ["top", "descending", "bottom", "ascending"],
+  phases: ["top", "descending", "bottom"],
   caloriesPerRep: 0.5,
 
   detectPhase(angles: Record<string, number>): string {
