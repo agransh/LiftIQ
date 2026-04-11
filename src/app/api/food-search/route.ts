@@ -2,6 +2,51 @@ import { NextRequest, NextResponse } from "next/server";
 
 const USDA_BASE = "https://api.nal.usda.gov/fdc/v1";
 
+/** Energy (kcal) can appear as nutrient #208 (SR legacy) or nutrientId 1008 / 2047 in FDC. */
+function findEnergyKcal(
+  nutrients: Array<Record<string, unknown>>
+): number | undefined {
+  for (const n of nutrients) {
+    const num = n.nutrientNumber != null ? String(n.nutrientNumber) : "";
+    const id = typeof n.nutrientId === "number" ? n.nutrientId : Number(n.nutrientId);
+    const name = typeof n.nutrientName === "string" ? n.nutrientName.toLowerCase() : "";
+    const unit = typeof n.unitName === "string" ? n.unitName.toUpperCase() : "";
+
+    const isEnergy =
+      num === "208" ||
+      id === 1008 ||
+      id === 2047 ||
+      id === 1062 ||
+      name === "energy" ||
+      (name.includes("energy") && (unit === "KCAL" || unit === "CAL"));
+
+    if (isEnergy && typeof n.value === "number" && !Number.isNaN(n.value)) {
+      return n.value;
+    }
+  }
+  return undefined;
+}
+
+function findMacro(
+  nutrients: Array<Record<string, unknown>>,
+  nutrientNumber: string,
+  nameIncludes: string
+): number | undefined {
+  for (const n of nutrients) {
+    const num = n.nutrientNumber != null ? String(n.nutrientNumber) : "";
+    const name = typeof n.nutrientName === "string" ? n.nutrientName.toLowerCase() : "";
+    if (
+      num === nutrientNumber ||
+      (name && name.includes(nameIncludes.toLowerCase()))
+    ) {
+      if (typeof n.value === "number" && !Number.isNaN(n.value)) {
+        return n.value;
+      }
+    }
+  }
+  return undefined;
+}
+
 export async function GET(req: NextRequest) {
   const query = req.nextUrl.searchParams.get("q");
   if (!query || query.trim().length < 2) {
@@ -14,59 +59,51 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const params = new URLSearchParams({
-      api_key: apiKey,
-      query: query.trim(),
-      pageSize: "12",
-      dataType: "Survey (FNDDS),SR Legacy,Foundation",
-    });
-
-    const res = await fetch(`${USDA_BASE}/foods/search?${params}`, {
+    // POST is required for correct `dataType` handling (must be a JSON array).
+    // Include Branded — many common foods (e.g. donuts) only exist there.
+    const res = await fetch(`${USDA_BASE}/foods/search?api_key=${encodeURIComponent(apiKey)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify({
+        query: query.trim(),
+        pageSize: 25,
+        dataType: ["Branded", "Survey (FNDDS)", "Foundation", "SR Legacy"],
+      }),
       next: { revalidate: 3600 },
     });
 
     if (!res.ok) {
+      const errText = await res.text();
+      console.error("USDA foods/search error:", res.status, errText.slice(0, 500));
       return NextResponse.json({ error: "USDA API error" }, { status: res.status });
     }
 
-    const data = await res.json();
+    const data = (await res.json()) as { foods?: Record<string, unknown>[] };
 
-    const foods = (data.foods ?? []).map((f: Record<string, unknown>) => {
-      const nutrients = (f.foodNutrients ?? []) as Array<{
-        nutrientNumber?: string;
-        nutrientName?: string;
-        value?: number;
-        unitName?: string;
-      }>;
+    const foods = (data.foods ?? []).map((f) => {
+      const nutrients = (f.foodNutrients ?? []) as Array<Record<string, unknown>>;
 
-      const energyNutrient = nutrients.find(
-        (n) => n.nutrientNumber === "208" || n.nutrientName === "Energy"
-      );
-      const proteinNutrient = nutrients.find(
-        (n) => n.nutrientNumber === "203" || n.nutrientName === "Protein"
-      );
-      const carbNutrient = nutrients.find(
-        (n) => n.nutrientNumber === "205" || n.nutrientName?.includes("Carbohydrate")
-      );
-      const fatNutrient = nutrients.find(
-        (n) => n.nutrientNumber === "204" || n.nutrientName?.includes("Total lipid")
-      );
+      const energy = findEnergyKcal(nutrients);
+      const protein = findMacro(nutrients, "203", "protein");
+      const carbs = findMacro(nutrients, "205", "carbohydrate");
+      const fat = findMacro(nutrients, "204", "total lipid");
 
       return {
         fdcId: f.fdcId,
         name: f.description,
         brand: f.brandOwner || null,
-        calories: Math.round(energyNutrient?.value ?? 0),
-        protein: Math.round((proteinNutrient?.value ?? 0) * 10) / 10,
-        carbs: Math.round((carbNutrient?.value ?? 0) * 10) / 10,
-        fat: Math.round((fatNutrient?.value ?? 0) * 10) / 10,
+        calories: Math.round(energy ?? 0),
+        protein: Math.round((protein ?? 0) * 10) / 10,
+        carbs: Math.round((carbs ?? 0) * 10) / 10,
+        fat: Math.round((fat ?? 0) * 10) / 10,
         servingSize: f.servingSize ?? null,
         servingSizeUnit: f.servingSizeUnit ?? null,
       };
     });
 
     return NextResponse.json({ foods });
-  } catch {
+  } catch (e) {
+    console.error("food-search:", e);
     return NextResponse.json({ error: "Failed to fetch from USDA" }, { status: 500 });
   }
 }
