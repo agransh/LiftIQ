@@ -31,28 +31,44 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
   onFrameRef.current = onFrame;
 
   const initCamera = useCallback(async (facing: "user" | "environment") => {
-    // Stop any existing tracks before switching
     if (videoRef.current?.srcObject) {
       (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
     }
 
-    try {
-      const mobile = isMobileDevice();
-      const constraints: MediaStreamConstraints = {
-        video: mobile
-          ? {
-              facingMode: facing,
-              width: { ideal: 480 },
-              height: { ideal: 640 },
-            }
-          : {
-              facingMode: facing,
-              width: { ideal: 640 },
-              height: { ideal: 480 },
-            },
-      };
+    const mobile = isMobileDevice();
+    const isRear = facing === "environment";
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    const buildConstraints = (exact: boolean): MediaStreamConstraints => {
+      const facingMode = exact ? { exact: facing } as const : facing;
+
+      if (mobile) {
+        return {
+          video: {
+            facingMode,
+            width: { ideal: isRear ? 1280 : 480 },
+            height: { ideal: isRear ? 720 : 640 },
+            frameRate: { ideal: 30 },
+          },
+        };
+      }
+      return {
+        video: {
+          facingMode,
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          frameRate: { ideal: 30 },
+        },
+      };
+    };
+
+    try {
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(buildConstraints(true));
+      } catch {
+        stream = await navigator.mediaDevices.getUserMedia(buildConstraints(false));
+      }
+
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.setAttribute("playsinline", "true");
@@ -76,7 +92,7 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
       );
 
       const modelAssetPath =
-        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task";
+        "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task";
 
       const baseOpts = (delegate: "GPU" | "CPU") => ({
         baseOptions: { modelAssetPath, delegate },

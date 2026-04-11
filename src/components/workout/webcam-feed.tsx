@@ -41,7 +41,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     setPoseStatus,
   } = useWorkoutStore();
 
-  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">(settings.cameraFacing || "user");
+  const [cameraFacing, setCameraFacing] = useState<"user" | "environment">(settings.cameraFacing || "environment");
   const [formCheckProgress, setFormCheckProgress] = useState(0);
   const [formDetectedBanner, setFormDetectedBanner] = useState(false);
   const [formCheckHint, setFormCheckHint] = useState("");
