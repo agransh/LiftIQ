@@ -1,15 +1,17 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const viewport: Viewport = {
@@ -22,13 +24,13 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Lift IQ — AI Workout Form Coach",
+  title: "LiftIQ — AI Form Coach",
   description:
-    "Real-time AI-powered workout form analysis. Get instant feedback on your exercise form, track reps, and improve with every session.",
+    "Your camera just became your coach. Real-time AI-powered workout form analysis with precision movement scoring by LiftIQ.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Lift IQ",
+    title: "LiftIQ",
   },
 };
 
@@ -40,9 +42,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} dark antialiased`}
+      className={`${inter.variable} ${jetbrainsMono.variable} dark antialiased`}
     >
-      <body className="min-h-[100dvh] bg-background text-foreground overscroll-none">
+      <body className="min-h-[100dvh] bg-zinc-950 text-zinc-50 overscroll-none">
         {children}
       </body>
     </html>

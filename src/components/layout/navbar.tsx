@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, Dumbbell, Settings, LogOut, Video } from "lucide-react";
+import {
+  Activity, Aperture, BarChart3, Dumbbell, LogOut, Settings, Video,
+} from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +15,11 @@ const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
+
+function isActive(pathname: string, href: string) {
+  if (href === "/") return pathname === "/";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
 
 export function Navbar() {
   const pathname = usePathname();
@@ -27,67 +34,64 @@ export function Navbar() {
 
   return (
     <>
-      {/* Desktop: top bar */}
-      <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl hidden md:block">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+      {/* ─── Desktop ─── */}
+      <header className="sticky top-0 z-50 hidden md:block bg-zinc-950/80 backdrop-blur-xl border-b border-zinc-800/60">
+        <div className="gradient-bar" />
+        <nav className="max-w-7xl mx-auto flex items-center justify-between h-16 px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 border border-primary/20 group-hover:bg-primary/20 transition-colors">
-              <Activity className="h-5 w-5 text-primary" />
-            </div>
-            <span className="text-xl font-bold tracking-tight">
-              Lift<span className="text-primary">IQ</span>
+            <Aperture className="h-6 w-6 text-purple-400 group-hover:rotate-90 transition-transform duration-500" strokeWidth={1.75} />
+            <span className="text-lg font-bold tracking-tight">
+              Lift<span className="text-purple-400">IQ</span>
             </span>
           </Link>
 
           <div className="flex items-center gap-1">
             {navItems.map((item) => {
-              const isActive = pathname === item.href;
+              const active = isActive(pathname, item.href);
               return (
                 <Link
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-200",
-                    isActive
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-accent"
+                    "flex items-center gap-2 px-3.5 py-2 rounded-lg text-sm font-medium transition-colors",
+                    active
+                      ? "bg-purple-500/10 text-purple-400"
+                      : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/50"
                   )}
                 >
-                  <item.icon className="h-4 w-4" />
-                  <span>{item.label}</span>
+                  <item.icon className="h-4 w-4" strokeWidth={active ? 2.25 : 1.75} />
+                  {item.label}
                 </Link>
               );
             })}
+            <div className="w-px h-6 bg-zinc-800 mx-2" />
             <button
               onClick={handleLogout}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent transition-all duration-200 ml-1"
+              className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-zinc-600 hover:text-zinc-300 hover:bg-zinc-800/50 transition-colors"
             >
-              <LogOut className="h-4 w-4" />
-              <span>Logout</span>
+              <LogOut className="h-4 w-4" strokeWidth={1.75} />
+              Logout
             </button>
           </div>
-        </div>
-      </nav>
+        </nav>
+      </header>
 
-      {/* Mobile: bottom tab bar */}
-      <nav className="fixed bottom-0 left-0 right-0 z-50 border-t border-border/50 bg-background/95 backdrop-blur-xl md:hidden"
-        style={{ paddingBottom: "var(--safe-bottom)" }}
-      >
-        <div className="flex items-center justify-around h-16">
+      {/* ─── Mobile ─── */}
+      <nav className="fixed inset-x-0 bottom-0 z-50 md:hidden bg-zinc-950/90 backdrop-blur-xl border-t border-zinc-800/60 pb-[env(safe-area-inset-bottom)]">
+        <div className="gradient-bar" />
+        <div className="flex items-stretch justify-around h-16 px-1">
           {navItems.map((item) => {
-            const isActive = pathname === item.href;
+            const active = isActive(pathname, item.href);
             return (
               <Link
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex flex-col items-center justify-center gap-1 flex-1 py-2 transition-colors min-h-[48px]",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground active:text-foreground"
+                  "flex flex-1 flex-col items-center justify-center gap-1 transition-colors",
+                  active ? "text-purple-400" : "text-zinc-600"
                 )}
               >
-                <item.icon className={cn("h-5 w-5", isActive && "drop-shadow-[0_0_6px_rgba(0,230,138,0.5)]")} />
+                <item.icon className="h-5 w-5" strokeWidth={active ? 2.25 : 1.5} />
                 <span className="text-[10px] font-medium">{item.label}</span>
               </Link>
             );

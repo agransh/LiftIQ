@@ -3,183 +3,183 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Activity,
-  Eye,
-  BarChart3,
-  Flame,
-  Trophy,
-  Volume2,
-  ArrowRight,
-  Sparkles,
-  Target,
-  Zap,
+  Eye, BarChart3, Flame, Trophy, Volume2, ArrowRight,
+  Sparkles, Target, Zap, Camera, Crosshair, Repeat, Aperture, Play,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Navbar } from "@/components/layout/navbar";
 
 const features = [
-  {
-    icon: Eye,
-    title: "Real-Time Pose Tracking",
-    description:
-      "MediaPipe-powered joint detection with color-coded skeleton overlay showing form quality at every joint.",
-  },
-  {
-    icon: Target,
-    title: "Form Scoring",
-    description:
-      "Get scored out of 100 on every rep based on depth, alignment, posture, and consistency.",
-  },
-  {
-    icon: Sparkles,
-    title: "Live Coaching Cues",
-    description:
-      'Instant corrective feedback like "Go lower", "Keep your back straight", and "Don\'t let knees cave in".',
-  },
-  {
-    icon: BarChart3,
-    title: "Progress Analytics",
-    description:
-      "Track workout history, score trends, rep counts, and calorie burn with interactive charts.",
-  },
-  {
-    icon: Flame,
-    title: "Food & Calorie Tracking",
-    description:
-      "Log meals and snacks to track your daily calorie intake with personalized goals based on your profile.",
-  },
-  {
-    icon: Trophy,
-    title: "Workout Streaks",
-    description:
-      "Build consistency with streak tracking. Stay motivated with your current and best streak stats.",
-  },
-  {
-    icon: Volume2,
-    title: "Voice Coach",
-    description:
-      "Optional voice feedback using browser speech synthesis. Hear coaching cues hands-free.",
-  },
-  {
-    icon: Zap,
-    title: "Multiple Exercises",
-    description:
-      "Choose from built-in AI-tracked exercises or add your own. Customize weight, reps, and sets for each.",
-  },
+  { icon: Eye, title: "Real-Time Pose Tracking", desc: "33-point skeleton overlay tracks every joint in real time using your browser camera." },
+  { icon: Target, title: "Form Scoring 0–100", desc: "Every rep earns a score based on depth, alignment, and tempo." },
+  { icon: Sparkles, title: "AI Coaching Cues", desc: "Instant text and voice corrections when your form needs work." },
+  { icon: BarChart3, title: "Progress Analytics", desc: "Track score trends, rep volume, and daily streaks over time." },
+  { icon: Flame, title: "Calorie Tracking", desc: "Log meals and match nutrition with your workout output." },
+  { icon: Repeat, title: "10+ Exercises", desc: "Squats, push-ups, curls, lunges, burpees, and more." },
 ];
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-};
 
 export default function LandingPage() {
   return (
-    <div className="min-h-[100dvh] gradient-mesh has-bottom-nav md:pb-0">
+    <div className="min-h-screen bg-zinc-950 has-bottom-nav md:pb-0">
       <Navbar />
 
-      {/* Hero Section */}
+      {/* ━━━ HERO ━━━ */}
       <section className="relative overflow-hidden">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 pt-10 pb-12 md:pt-20 md:pb-24 lg:pt-32 lg:pb-36">
+        {/* Purple/pink gradient blob */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[1000px] h-[600px] rounded-full bg-gradient-to-br from-purple-600/20 via-pink-500/10 to-transparent blur-[100px] pointer-events-none" />
+
+        <div className="relative max-w-6xl mx-auto px-6 pt-16 pb-20 md:pt-28 md:pb-32">
+          {/* Bitcamp badge */}
           <motion.div
-            className="mx-auto max-w-3xl text-center"
-            initial="hidden"
-            animate="visible"
-            variants={{
-              visible: { transition: { staggerChildren: 0.15 } },
-            }}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex justify-center mb-8"
           >
-            <motion.h1
-              variants={fadeInUp}
-              className="text-3xl font-extrabold tracking-tight sm:text-5xl lg:text-7xl"
-            >
-              Your AI-Powered
-              <br />
-              <span className="text-primary glow-text">Form Coach</span>
-            </motion.h1>
-
-            <motion.p
-              variants={fadeInUp}
-              className="mt-4 md:mt-6 text-sm md:text-lg text-muted-foreground sm:text-xl max-w-2xl mx-auto leading-relaxed px-2"
-            >
-              Lift IQ uses your camera to track body joints in real time, analyze
-              exercise form, score every rep out of 100, and deliver instant
-              corrective feedback — like having a personal trainer in your pocket.
-            </motion.p>
-
-            <motion.div
-              variants={fadeInUp}
-              className="mt-6 md:mt-10 flex flex-col sm:flex-row items-center justify-center gap-3"
-            >
-              <Button size="xl" asChild className="group w-full sm:w-auto">
-                <Link href="/workout">
-                  Start Training
-                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-                </Link>
-              </Button>
-              <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                <Link href="/dashboard">View Dashboard</Link>
-              </Button>
-            </motion.div>
+            <div className="inline-flex items-center gap-2 rounded-full bg-purple-500/10 border border-purple-500/20 px-4 py-1.5 text-sm text-purple-300">
+              <Zap className="h-3.5 w-3.5" />
+              Built for Bitcamp 2026
+            </div>
           </motion.div>
 
-          {/* Hero visual — webcam mockup */}
-          <motion.div
-            className="mx-auto mt-10 md:mt-20 max-w-4xl"
-            initial={{ opacity: 0, y: 40 }}
+          {/* Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.8 }}
+            transition={{ delay: 0.1, duration: 0.6 }}
+            className="text-center text-5xl sm:text-6xl md:text-7xl lg:text-8xl font-extrabold tracking-tight leading-[1.05]"
           >
-            <div className="glass-card glow-green rounded-2xl p-1">
-              <div className="relative aspect-[4/3] md:aspect-video rounded-xl bg-black/80 overflow-hidden flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-blue-500/5" />
-                <div className="relative text-center p-4 md:p-8">
-                  <div className="flex justify-center mb-4 md:mb-6">
-                    <svg
-                      viewBox="0 0 200 300"
-                      className="w-20 h-28 md:w-32 md:h-48 text-primary"
-                    >
-                      <circle cx="100" cy="40" r="20" fill="none" stroke="currentColor" strokeWidth="3" />
-                      <line x1="100" y1="60" x2="100" y2="160" stroke="currentColor" strokeWidth="3" />
-                      <line x1="100" y1="90" x2="50" y2="130" stroke="currentColor" strokeWidth="3" />
-                      <line x1="100" y1="90" x2="150" y2="130" stroke="currentColor" strokeWidth="3" />
-                      <line x1="100" y1="160" x2="60" y2="240" stroke="currentColor" strokeWidth="3" />
-                      <line x1="100" y1="160" x2="140" y2="240" stroke="currentColor" strokeWidth="3" />
-                      <circle cx="100" cy="90" r="6" fill="#00e68a" />
-                      <circle cx="50" cy="130" r="6" fill="#00e68a" />
-                      <circle cx="150" cy="130" r="6" fill="#00e68a" />
-                      <circle cx="100" cy="160" r="6" fill="#facc15" />
-                      <circle cx="60" cy="240" r="6" fill="#00e68a" />
-                      <circle cx="140" cy="240" r="6" fill="#f87171" />
-                    </svg>
+            <span className="block">Your camera is</span>
+            <span className="block bg-gradient-to-r from-purple-400 via-pink-400 to-orange-400 bg-clip-text text-transparent">
+              your coach.
+            </span>
+          </motion.h1>
+
+          {/* Subtitle */}
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.5 }}
+            className="text-center text-lg md:text-xl text-zinc-400 max-w-2xl mx-auto mt-6 leading-relaxed"
+          >
+            LiftIQ uses AI to analyze your exercise form in real time —
+            scoring every rep, tracking every joint, coaching you to perfection.
+          </motion.p>
+
+          {/* CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4, duration: 0.5 }}
+            className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10"
+          >
+            <Button size="xl" asChild className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold shadow-lg shadow-purple-500/25 rounded-2xl px-10 border-0">
+              <Link href="/workout">
+                <Play className="h-5 w-5 fill-current" />
+                Start Training
+                <ArrowRight className="h-5 w-5" />
+              </Link>
+            </Button>
+            <Button size="lg" variant="outline" asChild className="rounded-2xl border-zinc-700 text-zinc-300 hover:bg-zinc-800 hover:text-white">
+              <Link href="/dashboard">View Dashboard</Link>
+            </Button>
+          </motion.div>
+
+          {/* ━━━ WEBCAM PREVIEW ━━━ */}
+          <motion.div
+            initial={{ opacity: 0, y: 40, scale: 0.97 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ delay: 0.55, duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+            className="mt-16 md:mt-24 max-w-5xl mx-auto"
+          >
+            <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900 shadow-2xl overflow-hidden">
+              {/* Gradient top bar */}
+              <div className="gradient-bar" />
+
+              {/* Browser chrome */}
+              <div className="flex items-center justify-between bg-zinc-900 border-b border-zinc-800 px-4 py-2.5">
+                <div className="flex items-center gap-2">
+                  <div className="flex gap-1.5">
+                    <span className="h-3 w-3 rounded-full bg-red-500/70" />
+                    <span className="h-3 w-3 rounded-full bg-yellow-500/70" />
+                    <span className="h-3 w-3 rounded-full bg-green-500/70" />
                   </div>
-                  <div className="flex items-center justify-center gap-4 md:gap-6 text-xs md:text-sm">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-emerald-400" />
-                      <span className="text-muted-foreground">Good</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-yellow-400" />
-                      <span className="text-muted-foreground">Moderate</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 md:w-3 md:h-3 rounded-full bg-red-400" />
-                      <span className="text-muted-foreground">Needs Fix</span>
-                    </div>
-                  </div>
+                  <span className="text-xs text-zinc-500 ml-3 hidden sm:block">LiftIQ — Live Session</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse" />
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-red-400">REC</span>
+                </div>
+              </div>
+
+              {/* Feed area */}
+              <div className="relative aspect-[2.2/1] bg-zinc-950">
+                {/* Grid overlay */}
+                <div className="absolute inset-0 opacity-10" style={{
+                  backgroundImage: "linear-gradient(rgba(255,255,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.05) 1px, transparent 1px)",
+                  backgroundSize: "50px 50px",
+                }} />
+
+                {/* Stick figure */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg viewBox="0 0 240 360" className="h-[55%] w-auto opacity-90" aria-hidden>
+                    <defs>
+                      <linearGradient id="bone-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" stopColor="#a855f7" stopOpacity="0.6" />
+                        <stop offset="100%" stopColor="#ec4899" stopOpacity="0.4" />
+                      </linearGradient>
+                    </defs>
+                    <line x1="120" y1="60" x2="120" y2="180" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="120" y1="100" x2="65" y2="155" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="120" y1="100" x2="175" y2="155" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="65" y1="155" x2="45" y2="120" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="175" y1="155" x2="195" y2="120" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="120" y1="180" x2="80" y2="280" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="120" y1="180" x2="160" y2="280" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="80" y1="280" x2="70" y2="340" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <line x1="160" y1="280" x2="170" y2="340" stroke="url(#bone-grad)" strokeWidth="3" strokeLinecap="round" />
+                    <circle cx="120" cy="38" r="22" fill="none" stroke="url(#bone-grad)" strokeWidth="3" />
+                    {/* Joints */}
+                    <circle cx="120" cy="100" r="6" fill="#22c55e" />
+                    <circle cx="65" cy="155" r="6" fill="#22c55e" />
+                    <circle cx="175" cy="155" r="6" fill="#eab308" />
+                    <circle cx="120" cy="180" r="6" fill="#22c55e" />
+                    <circle cx="80" cy="280" r="6" fill="#22c55e" />
+                    <circle cx="160" cy="280" r="6" fill="#ef4444" />
+                    <circle cx="45" cy="120" r="5" fill="#22c55e" />
+                    <circle cx="195" cy="120" r="5" fill="#22c55e" />
+                  </svg>
                 </div>
 
-                <div className="absolute top-2 left-2 md:top-4 md:left-4 glass-card rounded-lg px-2 py-1 md:px-3 md:py-2">
-                  <div className="text-[10px] md:text-xs text-muted-foreground">Score</div>
-                  <div className="text-lg md:text-2xl font-bold text-primary">87</div>
-                </div>
-                <div className="absolute top-2 right-2 md:top-4 md:right-4 glass-card rounded-lg px-2 py-1 md:px-3 md:py-2">
-                  <div className="text-[10px] md:text-xs text-muted-foreground">Reps</div>
-                  <div className="text-lg md:text-2xl font-bold">12</div>
-                </div>
-                <div className="absolute bottom-2 left-2 right-2 md:bottom-4 md:left-4 md:right-4 glass-card rounded-lg px-3 py-1.5 md:px-4 md:py-2 text-center">
-                  <span className="text-xs md:text-sm text-yellow-400">&uarr; Keep your chest up</span>
+                {/* Floating Score */}
+                <motion.div
+                  className="absolute top-4 left-4 sm:top-6 sm:left-6"
+                  animate={{ y: [0, -5, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-xl px-4 py-3 shadow-xl">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-0.5">Score</div>
+                    <div className="text-3xl font-black tabular-nums text-green-400">94<span className="text-sm text-zinc-600 ml-0.5">/100</span></div>
+                  </div>
+                </motion.div>
+
+                {/* Floating Reps */}
+                <motion.div
+                  className="absolute top-4 right-4 sm:top-6 sm:right-6"
+                  animate={{ y: [0, -5, 0] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
+                >
+                  <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-xl px-4 py-3 shadow-xl">
+                    <div className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-0.5">Reps</div>
+                    <div className="text-3xl font-black tabular-nums text-purple-400">12</div>
+                  </div>
+                </motion.div>
+
+                {/* Coaching cue */}
+                <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6">
+                  <div className="bg-zinc-900/90 backdrop-blur-md border border-zinc-700 rounded-xl px-4 py-2.5 flex items-center justify-center gap-2 shadow-xl">
+                    <Sparkles className="h-4 w-4 text-purple-400" />
+                    <span className="text-sm text-zinc-300">Keep your chest up — great depth</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -187,85 +187,114 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Features Grid */}
-      <section className="py-12 md:py-24 border-t border-border/50">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
+      {/* ━━━ FEATURES ━━━ */}
+      <section className="border-t border-zinc-800 bg-zinc-950 py-20 md:py-28">
+        <div className="max-w-6xl mx-auto px-6">
           <motion.div
-            className="text-center mb-8 md:mb-16"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
+            className="text-center mb-14"
           >
-            <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl">
-              Everything You Need to
-              <span className="text-primary"> Train Smarter</span>
+            <h2 className="text-3xl sm:text-4xl md:text-5xl font-extrabold tracking-tight">
+              Everything you need to{" "}
+              <span className="bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">train smarter</span>
             </h2>
-            <p className="mt-3 md:mt-4 text-muted-foreground text-sm md:text-lg max-w-2xl mx-auto px-2">
-              Lift IQ combines real-time computer vision with smart exercise
-              analysis to give you actionable coaching feedback.
+            <p className="mt-4 text-zinc-500 text-lg max-w-lg mx-auto">
+              Precision tracking, scoring, and coaching — all from your webcam.
             </p>
           </motion.div>
 
-          <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            {features.map((feature, i) => (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-px bg-zinc-800 rounded-2xl overflow-hidden border border-zinc-800">
+            {features.map((f, i) => (
               <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
+                key={f.title}
+                initial={{ opacity: 0 }}
+                whileInView={{ opacity: 1 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.05 }}
+                className="bg-zinc-950 p-8 hover:bg-zinc-900/50 transition-colors duration-300"
               >
-                <Card className="h-full bg-card/50 hover:bg-card/80 transition-colors border-border/50 hover:border-primary/20 active:bg-card/80">
-                  <CardContent className="pt-5 pb-5 md:pt-6">
-                    <div className="mb-3 md:mb-4 flex h-9 w-9 md:h-10 md:w-10 items-center justify-center rounded-lg bg-primary/10">
-                      <feature.icon className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                    </div>
-                    <h3 className="font-semibold mb-1.5 md:mb-2 text-sm md:text-base">{feature.title}</h3>
-                    <p className="text-xs md:text-sm text-muted-foreground leading-relaxed">
-                      {feature.description}
-                    </p>
-                  </CardContent>
-                </Card>
+                <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-purple-500/20 to-pink-500/10 flex items-center justify-center mb-4">
+                  <f.icon className="h-5 w-5 text-purple-400" strokeWidth={1.75} />
+                </div>
+                <h3 className="text-base font-semibold mb-2">{f.title}</h3>
+                <p className="text-sm text-zinc-500 leading-relaxed">{f.desc}</p>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="py-12 md:py-24 border-t border-border/50">
-        <div className="mx-auto max-w-3xl px-4 sm:px-6 text-center">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="text-2xl font-bold sm:text-3xl lg:text-4xl mb-3 md:mb-4">
-              Ready to Level Up Your Form?
-            </h2>
-            <p className="text-muted-foreground text-sm md:text-lg mb-6 md:mb-8 px-2">
-              Just your browser and a camera. Sign up and start training.
-            </p>
-            <Button size="xl" asChild className="group w-full sm:w-auto">
-              <Link href="/workout">
-                Start Your First Workout
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
-              </Link>
-            </Button>
-          </motion.div>
+      {/* ━━━ HOW IT WORKS ━━━ */}
+      <section className="border-t border-zinc-800 bg-zinc-900/30 py-20 md:py-28">
+        <div className="max-w-4xl mx-auto px-6">
+          <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-center mb-16">
+            Three steps to <span className="text-purple-400">perfect form</span>
+          </h2>
+
+          <div className="space-y-0">
+            {[
+              { icon: Camera, num: "01", title: "Set up camera", desc: "Grant browser access and frame your full body. No app to install." },
+              { icon: Crosshair, num: "02", title: "Choose exercise", desc: "Pick from 10+ movements — the model locks onto your joints in seconds." },
+              { icon: Zap, num: "03", title: "Train with AI", desc: "Watch your score, reps, and cues update live as you move." },
+            ].map((s, i) => (
+              <motion.div
+                key={s.num}
+                initial={{ opacity: 0, x: -20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.1 }}
+                className="flex gap-6 items-start py-8 border-b border-zinc-800 last:border-0"
+              >
+                <div className="shrink-0 h-14 w-14 rounded-2xl bg-zinc-800 flex items-center justify-center">
+                  <s.icon className="h-6 w-6 text-purple-400" strokeWidth={1.5} />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-purple-400/60 tracking-widest mb-1">{s.num}</div>
+                  <h3 className="text-xl font-bold mb-1">{s.title}</h3>
+                  <p className="text-zinc-500 text-sm leading-relaxed">{s.desc}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 py-6 md:py-8">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6 flex items-center justify-center gap-2">
-          <Activity className="h-4 w-4 text-primary" />
-          <span className="text-sm font-semibold">
-            Lift<span className="text-primary">IQ</span>
-          </span>
-          <span className="text-xs text-muted-foreground ml-2">
-            AI Workout Form Coach
-          </span>
+      {/* ━━━ CTA ━━━ */}
+      <section className="border-t border-zinc-800 py-20 md:py-28">
+        <div className="max-w-3xl mx-auto px-6 text-center">
+          <div className="relative rounded-3xl border border-zinc-800 bg-zinc-900/50 px-8 py-16 md:px-14 md:py-20 overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] rounded-full bg-gradient-to-br from-purple-600/15 via-pink-500/10 to-transparent blur-[80px] pointer-events-none" />
+            <div className="relative">
+              <h2 className="text-3xl sm:text-4xl font-extrabold tracking-tight mb-4">
+                Ready to train smarter?
+              </h2>
+              <p className="text-zinc-500 text-lg mb-8 max-w-md mx-auto">
+                Open LiftIQ, press start, and let your reps speak.
+              </p>
+              <Button size="xl" asChild className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white font-bold shadow-lg shadow-purple-500/25 rounded-2xl px-10 border-0">
+                <Link href="/workout">
+                  Start Training
+                  <ArrowRight className="h-5 w-5" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ━━━ FOOTER ━━━ */}
+      <footer className="border-t border-zinc-800 py-8">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-center gap-3 text-center">
+          <div className="flex items-center gap-2">
+            <Aperture className="h-5 w-5 text-purple-400" strokeWidth={1.75} />
+            <span className="font-bold">Lift<span className="text-purple-400">IQ</span></span>
+          </div>
+          <span className="hidden md:block text-zinc-700">·</span>
+          <span className="text-sm text-zinc-600">AI Form Coach</span>
+          <span className="hidden md:block text-zinc-700">·</span>
+          <span className="text-xs text-zinc-700">Built for Bitcamp 2026</span>
         </div>
       </footer>
     </div>

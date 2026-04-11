@@ -112,47 +112,74 @@ export function WorkoutControls() {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="glass-card w-full rounded-xl border border-white/[0.06] p-3 shadow-lg shadow-black/30">
       {!isWorkoutActive ? (
-        <>
-          <Button onClick={handleStart} size="lg" className="flex-1 min-h-[48px]">
+        <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:items-stretch">
+          <Button
+            onClick={handleStart}
+            size="lg"
+            className="w-full min-h-[48px] rounded-xl shadow-md shadow-primary/15 transition-all hover:shadow-lg hover:shadow-primary/20 hover:brightness-105"
+          >
             <Play className="h-4 w-4" />
             Start
           </Button>
-          <Button onClick={handleReset} variant="outline" size="lg" className="min-h-[48px]">
+          <Button
+            onClick={handleReset}
+            variant="outline"
+            size="lg"
+            className="min-h-[48px] rounded-xl border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-600 transition-all sm:shrink-0 sm:px-5"
+          >
             <RotateCcw className="h-4 w-4" />
           </Button>
-        </>
+        </div>
       ) : (
-        <>
-          {/* Recording indicator */}
+        <div className="flex w-full items-stretch gap-2">
           {isRecording && (
-            <div className="flex items-center gap-1.5 px-2 shrink-0">
-              <CircleDot className="h-3.5 w-3.5 text-red-500 animate-pulse" />
-              <span className="text-xs text-red-400 font-medium">REC</span>
+            <div
+              className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-zinc-900/80 backdrop-blur-md border border-red-500/25 px-2.5 min-h-[48px] min-w-[3.25rem] shadow-inner"
+              aria-hidden
+            >
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-500 opacity-60" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500 shadow-[0_0_10px_rgba(239,68,68,0.85)]" />
+              </span>
+              <CircleDot className="h-3.5 w-3.5 text-red-400 shrink-0" />
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-red-400 leading-none">
+                REC
+              </span>
             </div>
           )}
           {isPaused ? (
-            <Button onClick={resumeWorkout} size="lg" className="flex-1 min-h-[48px]">
+            <Button
+              onClick={resumeWorkout}
+              variant="outline"
+              size="lg"
+              className="min-h-[48px] flex-1 rounded-xl border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-600 transition-all"
+            >
               <Play className="h-4 w-4" />
               Resume
             </Button>
           ) : (
             <Button
               onClick={pauseWorkout}
-              variant="secondary"
+              variant="outline"
               size="lg"
-              className="flex-1 min-h-[48px]"
+              className="min-h-[48px] flex-1 rounded-xl border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-600 transition-all"
             >
               <Pause className="h-4 w-4" />
               Pause
             </Button>
           )}
-          <Button onClick={handleStop} variant="destructive" size="lg" className="min-h-[48px]">
+          <Button
+            onClick={handleStop}
+            variant="destructive"
+            size="lg"
+            className="min-h-[48px] shrink-0 rounded-xl shadow-md shadow-destructive/20 hover:shadow-lg hover:shadow-destructive/30 transition-all px-4 sm:px-5"
+          >
             <Square className="h-4 w-4" />
             End
           </Button>
-        </>
+        </div>
       )}
     </div>
   );
