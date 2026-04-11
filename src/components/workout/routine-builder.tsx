@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { WorkoutRoutine, RoutineExercise } from "@/types";
 import { getRoutines, saveRoutine, deleteRoutine, fetchRoutines } from "@/lib/storage";
 import { exerciseList } from "@/lib/exercises";
@@ -56,6 +56,7 @@ interface RoutineBuilderProps {
 }
 
 export function RoutineBuilder({ onClose, onStartRoutine }: RoutineBuilderProps) {
+  const rexIdSeq = useRef(0);
   const [routines, setRoutines] = useState<WorkoutRoutine[]>([]);
   const [mode, setMode] = useState<"list" | "edit">("list");
   const [editingRoutine, setEditingRoutine] = useState<WorkoutRoutine | null>(null);
@@ -67,8 +68,10 @@ export function RoutineBuilder({ onClose, onStartRoutine }: RoutineBuilderProps)
   const [exerciseSearch, setExerciseSearch] = useState("");
 
   useEffect(() => {
-    setRoutines(getRoutines());
-    fetchRoutines().then(setRoutines);
+    queueMicrotask(() => {
+      setRoutines(getRoutines());
+      void fetchRoutines().then(setRoutines);
+    });
   }, []);
 
   const refresh = () => {
@@ -92,12 +95,13 @@ export function RoutineBuilder({ onClose, onStartRoutine }: RoutineBuilderProps)
 
   const handleSave = () => {
     if (!routineName.trim() || exercises.length === 0) return;
+    const now = Date.now();
     const routine: WorkoutRoutine = {
-      id: editingRoutine?.id || `routine-${Date.now()}`,
+      id: editingRoutine?.id || `routine-${crypto.randomUUID()}`,
       name: routineName.trim(),
       exercises,
-      createdAt: editingRoutine?.createdAt || Date.now(),
-      updatedAt: Date.now(),
+      createdAt: editingRoutine?.createdAt ?? now,
+      updatedAt: now,
     };
     saveRoutine(routine);
     refresh();
@@ -111,7 +115,7 @@ export function RoutineBuilder({ onClose, onStartRoutine }: RoutineBuilderProps)
 
   const addExercise = (name: string) => {
     const ex: RoutineExercise = {
-      id: `rex-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: `rex-${++rexIdSeq.current}`,
       name,
       trackingId: TRACKING_MAP[name] || "custom",
       targetSets: 3,

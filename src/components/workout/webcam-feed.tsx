@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 import { usePoseDetection } from "@/lib/pose/use-pose-detection";
 import { useWorkoutStore } from "@/lib/store";
 import { RepDetector } from "@/lib/scoring/rep-detector";
@@ -44,6 +44,10 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
       exerciseRef.current = selectedExercise;
     }
   }, [selectedExercise]);
+
+  const drawSkeletonRef = useRef<
+    (landmarks: Landmark[], jointColors?: Map<number, string>) => void
+  >(() => {});
 
   const getJointColors = useCallback(
     (issues: JointFeedback[], config: ReturnType<typeof getExercise>) => {
@@ -108,7 +112,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
 
       const config = getExercise(exerciseRef.current);
       const jointColors = getJointColors(result.issues, config);
-      drawSkeleton(landmarks, jointColors);
+      drawSkeletonRef.current(landmarks, jointColors);
     },
     [
       isWorkoutActive,
@@ -128,6 +132,10 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     onFrame: handleFrame,
     enabled: true,
   });
+
+  useLayoutEffect(() => {
+    drawSkeletonRef.current = drawSkeleton;
+  }, [drawSkeleton]);
 
   useEffect(() => {
     setPoseStatus(status);

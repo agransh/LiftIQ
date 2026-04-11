@@ -3,7 +3,6 @@
 import React from "react";
 import { useWorkoutStore } from "@/lib/store";
 import { generateWorkoutFeedback } from "@/lib/ai/feedback";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/ui/glass-card";
 import { motion } from "framer-motion";

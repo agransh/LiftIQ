@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
-  Eye, BarChart3, Flame, Volume2, ArrowRight, ArrowUpRight,
+  Eye, BarChart3, Flame, ArrowRight, ArrowUpRight,
   Sparkles, Target, Zap, Camera, Crosshair, Repeat, Activity,
 } from "lucide-react";
 import { Navbar } from "@/components/layout/navbar";

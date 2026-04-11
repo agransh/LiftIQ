@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getAllRecordingsMeta, getRecordingBlob, deleteRecording, type RecordingMeta } from "@/lib/storage/recordings-db";
 import { Video, Play, Trash2, X, Clock, Target, Repeat, Download } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 const formatDuration = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`;
 const formatSize = (bytes: number) => bytes < 1024 * 1024 ? `${(bytes / 1024).toFixed(0)} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -20,7 +19,11 @@ export default function RecordingsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const loadRecordings = async () => { setRecordings(await getAllRecordingsMeta()); };
-  useEffect(() => { loadRecordings(); }, []);
+  useEffect(() => {
+    queueMicrotask(() => {
+      void loadRecordings();
+    });
+  }, []);
   useEffect(() => { if (!activeVideo) return; const p = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = p; }; }, [activeVideo]);
   useEffect(() => { const f = (e: KeyboardEvent) => { if (e.key === "Escape") setActiveVideo(v => { if (v) URL.revokeObjectURL(v.url); return null; }); }; window.addEventListener("keydown", f); return () => window.removeEventListener("keydown", f); }, []);
 

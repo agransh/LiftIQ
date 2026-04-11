@@ -19,7 +19,10 @@ export function LiveMetrics() {
   const offset = circ * (1 - score / 100);
 
   useEffect(() => {
-    if (!isWorkoutActive || !sessionStartTime) { setElapsed(0); return; }
+    if (!isWorkoutActive || !sessionStartTime) {
+      queueMicrotask(() => setElapsed(0));
+      return;
+    }
     const iv = setInterval(() => setElapsed(Math.floor((Date.now() - sessionStartTime) / 1000)), 1000);
     return () => clearInterval(iv);
   }, [isWorkoutActive, sessionStartTime]);

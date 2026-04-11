@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useCallback, useEffect, useState } from "react";
+import type { PoseLandmarker } from "@mediapipe/tasks-vision";
 import { Landmark, PoseDetectionStatus } from "@/types";
 import { SKELETON_CONNECTIONS } from "./angle-utils";
 import "@/lib/pose/mediapipe-console-filter";
@@ -21,7 +22,7 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
   const animFrameRef = useRef<number>(0);
   const lastTimestampRef = useRef<number>(-1);
   const lastVideoTimeRef = useRef<number>(-1);
-  const poseLandmarkerRef = useRef<any>(null);
+  const poseLandmarkerRef = useRef<PoseLandmarker | null>(null);
   const modelReadyRef = useRef<boolean>(false);
   const [status, setStatus] = useState<PoseDetectionStatus>("loading");
   const [landmarks, setLandmarks] = useState<Landmark[] | null>(null);
@@ -182,7 +183,7 @@ export function usePoseDetection({ onFrame, enabled = true }: UsePoseDetectionOp
     try {
       const result = poseLandmarker.detectForVideo(video, now);
       if (result?.landmarks && result.landmarks.length > 0) {
-        const lms: Landmark[] = result.landmarks[0].map((l: any) => ({
+        const lms: Landmark[] = result.landmarks[0].map((l) => ({
           x: l.x,
           y: l.y,
           z: l.z,

@@ -35,7 +35,11 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
   const refresh = () => { setSessions(getSessions()); setDailyLogs(getDailyLogs()); setStreak(getStreakData()); setTodayFoodCalories(getTodayFoodCalories()); setFoodLog(getFoodLog()); setProfile(getUserProfile()); };
-  useEffect(() => { refresh(); }, []);
+  useEffect(() => {
+    queueMicrotask(() => {
+      refresh();
+    });
+  }, []);
 
   const totalReps = sessions.reduce((s, x) => s + x.reps.length, 0);
   const avgScore = sessions.length > 0 ? Math.round(sessions.reduce((s, x) => s + x.totalScore, 0) / sessions.length) : 0;

@@ -41,6 +41,17 @@ interface ExerciseManagerProps {
   onSelectExercise?: (exercise: UserExercise) => void;
 }
 
+/** Outside component so react-hooks/purity does not treat Date.now as render-time impurity */
+function buildKnownExerciseDraft(name: string, trackingId: string): UserExercise {
+  return {
+    id: `ex-${crypto.randomUUID()}`,
+    name,
+    trackingId,
+    isCustom: false,
+    createdAt: Date.now(),
+  };
+}
+
 export function ExerciseManager({ onClose, onSelectExercise }: ExerciseManagerProps) {
   const [exercises, setExercises] = useState<UserExercise[]>([]);
   const [mode, setMode] = useState<"list" | "add-known" | "add-custom" | "edit">("list");
@@ -55,8 +66,10 @@ export function ExerciseManager({ onClose, onSelectExercise }: ExerciseManagerPr
   const [formNotes, setFormNotes] = useState("");
 
   useEffect(() => {
-    setExercises(getUserExercises());
-    fetchUserExercises().then(setExercises);
+    queueMicrotask(() => {
+      setExercises(getUserExercises());
+      void fetchUserExercises().then(setExercises);
+    });
   }, []);
 
   const refresh = () => {
@@ -66,13 +79,7 @@ export function ExerciseManager({ onClose, onSelectExercise }: ExerciseManagerPr
 
   const handleAddKnown = (name: string) => {
     const trackingId = TRACKING_MAP[name] || "custom";
-    const exercise: UserExercise = {
-      id: `ex-${Date.now()}`,
-      name,
-      trackingId,
-      isCustom: false,
-      createdAt: Date.now(),
-    };
+    const exercise = buildKnownExerciseDraft(name, trackingId);
     setEditingExercise(exercise);
     setFormName(name);
     setFormWeight("");
@@ -103,8 +110,9 @@ export function ExerciseManager({ onClose, onSelectExercise }: ExerciseManagerPr
   };
 
   const handleSave = () => {
+    const ts = Date.now();
     const exercise: UserExercise = {
-      id: editingExercise?.id || `ex-${Date.now()}`,
+      id: editingExercise?.id || `ex-${crypto.randomUUID()}`,
       name: formName.trim(),
       trackingId: editingExercise?.trackingId || TRACKING_MAP[formName.trim()] || "custom",
       weight: formWeight ? parseFloat(formWeight) : undefined,
@@ -112,7 +120,7 @@ export function ExerciseManager({ onClose, onSelectExercise }: ExerciseManagerPr
       targetSets: formSets ? parseInt(formSets) : undefined,
       notes: formNotes.trim() || undefined,
       isCustom: editingExercise?.isCustom ?? !TRACKING_MAP[formName.trim()],
-      createdAt: editingExercise?.createdAt || Date.now(),
+      createdAt: editingExercise?.createdAt ?? ts,
     };
 
     if (!exercise.name) return;

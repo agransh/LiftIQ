@@ -28,8 +28,25 @@ export default function SettingsPage() {
   const [pGoal, setPGoal] = useState<WeightGoal>("maintain"); const [pUseRec, setPUseRec] = useState(true); const [pCustCal, setPCustCal] = useState("");
 
   useEffect(() => {
-    const s = getSettings(); updateSettings(s); const p = getUserProfile(); setProfile(p);
-    if (p) { setPName(p.name); setPAge(p.age.toString()); setPWeight(p.weight.toString()); setPHFt(Math.floor(p.height / 12).toString()); setPHIn((p.height % 12).toString()); setPGender(p.gender || "male"); setPActivity(p.activityLevel || "moderate"); setPDisabilities(p.disabilities); setPGoal(p.weightGoal || "maintain"); setPUseRec(p.useRecommendedCalories ?? true); setPCustCal(p.calorieGoal?.toString() || ""); }
+    queueMicrotask(() => {
+      const s = getSettings();
+      updateSettings(s);
+      const p = getUserProfile();
+      setProfile(p);
+      if (p) {
+        setPName(p.name);
+        setPAge(p.age.toString());
+        setPWeight(p.weight.toString());
+        setPHFt(Math.floor(p.height / 12).toString());
+        setPHIn((p.height % 12).toString());
+        setPGender(p.gender || "male");
+        setPActivity(p.activityLevel || "moderate");
+        setPDisabilities(p.disabilities);
+        setPGoal(p.weightGoal || "maintain");
+        setPUseRec(p.useRecommendedCalories ?? true);
+        setPCustCal(p.calorieGoal?.toString() || "");
+      }
+    });
   }, [updateSettings]);
 
   const handleSave = () => { saveSettings(settings); setSaved(true); setTimeout(() => setSaved(false), 2000); };

@@ -18,9 +18,11 @@ export function RestTimer({ initialSeconds, onComplete, onSkip, label }: RestTim
   const completedRef = useRef(false);
 
   useEffect(() => {
-    setRemaining(initialSeconds);
-    completedRef.current = false;
-    setIsPaused(false);
+    queueMicrotask(() => {
+      setRemaining(initialSeconds);
+      completedRef.current = false;
+      setIsPaused(false);
+    });
   }, [initialSeconds]);
 
   useEffect(() => {

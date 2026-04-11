@@ -29,7 +29,7 @@ export function MobileWorkoutHUD() {
 
   useEffect(() => {
     if (!isWorkoutActive || !sessionStartTime) {
-      setElapsed(0);
+      queueMicrotask(() => setElapsed(0));
       return;
     }
 

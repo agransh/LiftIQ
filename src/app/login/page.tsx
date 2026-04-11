@@ -18,7 +18,11 @@ export default function LoginPage() {
 
   const handleLogin = async () => { setLoading(true); setError(""); setMessage(""); const { error } = await supabase.auth.signInWithPassword({ email, password }); if (error) { setError(error.message); setLoading(false); return; } router.push("/"); router.refresh(); };
   const handleSignup = async () => { setLoading(true); setError(""); setMessage(""); const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } }); if (error) { setError(error.message); setLoading(false); return; } setMessage("Check your email for a confirmation link!"); setLoading(false); };
-  const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); mode === "login" ? handleLogin() : handleSignup(); };
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (mode === "login") void handleLogin();
+    else void handleSignup();
+  };
 
   const inp = "w-full h-12 rounded-xl bg-white/[0.03] border border-white/[0.06] text-sm text-zinc-100 placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-cyan-500/30 transition-colors";
 
