@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { FoodEntry } from "@/types";
 import {
-  getFoodLog,
   addFoodEntry,
   deleteFoodEntry,
   getTodayFoodCalories,
   getTodayFoodEntries,
+  fetchTodayFoodCalories,
+  fetchTodayFoodEntries,
 } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,13 +61,23 @@ export function FoodTracker({ compact = false }: FoodTrackerProps) {
   const [todayEntries, setTodayEntries] = useState<FoodEntry[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
 
-  const refresh = () => {
+  const refreshLocal = () => {
     setTodayCalories(getTodayFoodCalories());
     setTodayEntries(getTodayFoodEntries());
   };
 
+  const refresh = () => {
+    refreshLocal();
+    (async () => {
+      const [cal, entries] = await Promise.all([fetchTodayFoodCalories(), fetchTodayFoodEntries()]);
+      setTodayCalories(cal);
+      setTodayEntries(entries);
+    })();
+  };
+
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (compact) {

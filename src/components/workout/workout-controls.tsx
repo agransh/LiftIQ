@@ -67,7 +67,8 @@ export function WorkoutControls() {
     };
 
     saveSession(session);
-    updateStreak();
+    await updateStreak();
+
     setLastSession(session);
 
     // Stop workout first so MediaRecorder fires onstop and sets the blob

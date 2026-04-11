@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { UserExercise } from "@/types";
-import { getUserExercises, saveUserExercise, deleteUserExercise } from "@/lib/storage";
+import { getUserExercises, saveUserExercise, deleteUserExercise, fetchUserExercises } from "@/lib/storage";
 import { exerciseList } from "@/lib/exercises";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -56,9 +56,13 @@ export function ExerciseManager({ onClose, onSelectExercise }: ExerciseManagerPr
 
   useEffect(() => {
     setExercises(getUserExercises());
+    fetchUserExercises().then(setExercises);
   }, []);
 
-  const refresh = () => setExercises(getUserExercises());
+  const refresh = () => {
+    setExercises(getUserExercises());
+    fetchUserExercises().then(setExercises);
+  };
 
   const handleAddKnown = (name: string) => {
     const trackingId = TRACKING_MAP[name] || "custom";
