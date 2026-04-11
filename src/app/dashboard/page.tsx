@@ -13,6 +13,11 @@ import {
   getTodayFoodCalories,
   getFoodLog,
   getUserProfile,
+  fetchSessions,
+  fetchStreakData,
+  fetchFoodLog,
+  fetchUserProfile,
+  rebuildDailyLogs,
 } from "@/lib/storage";
 import { WorkoutSession, DailyLog, StreakData, FoodEntry, UserProfile } from "@/types";
 import { getGoalLabel } from "@/lib/calories";
@@ -55,7 +60,7 @@ export default function DashboardPage() {
   const [foodLog, setFoodLog] = useState<FoodEntry[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
-  const refresh = () => {
+  const refreshLocal = () => {
     setSessions(getSessions());
     setDailyLogs(getDailyLogs());
     setStreak(getStreakData());
@@ -65,7 +70,20 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    refresh();
+    refreshLocal();
+    // Fetch from Supabase and update
+    (async () => {
+      const [s, st, fl, p] = await Promise.all([
+        fetchSessions(), fetchStreakData(), fetchFoodLog(), fetchUserProfile(),
+      ]);
+      setSessions(s);
+      setDailyLogs(rebuildDailyLogs(s));
+      setStreak(st);
+      setFoodLog(fl);
+      setProfile(p);
+      const today = new Date().toISOString().split("T")[0];
+      setTodayFoodCalories(fl.filter((e) => e.date === today).reduce((sum, e) => sum + e.calories, 0));
+    })();
   }, []);
 
   const totalReps = sessions.reduce((sum, s) => sum + s.reps.length, 0);

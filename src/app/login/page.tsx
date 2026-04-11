@@ -7,7 +7,6 @@ import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Activity, ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,12 +19,11 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  const supabase = createClient();
-
   const handleLogin = async () => {
     setLoading(true);
     setError("");
     setMessage("");
+    const supabase = createClient();
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -46,6 +44,7 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     setMessage("");
+    const supabase = createClient();
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -101,7 +100,6 @@ export default function LoginPage() {
         <Card className="bg-card/50 border-border/50 backdrop-blur-xl">
           <CardContent className="pt-6 pb-6 px-5">
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Name (signup only) */}
               {mode === "signup" && (
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
@@ -121,7 +119,6 @@ export default function LoginPage() {
                 </div>
               )}
 
-              {/* Email */}
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   Email
@@ -139,7 +136,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Password */}
               <div>
                 <label className="text-xs font-medium text-muted-foreground mb-1.5 block">
                   Password
@@ -165,21 +161,18 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Error */}
               {error && (
                 <div className="rounded-lg bg-destructive/10 border border-destructive/20 px-3 py-2.5 text-xs text-destructive">
                   {error}
                 </div>
               )}
 
-              {/* Success message */}
               {message && (
                 <div className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3 py-2.5 text-xs text-emerald-400">
                   {message}
                 </div>
               )}
 
-              {/* Submit */}
               <Button
                 type="submit"
                 size="lg"
@@ -197,7 +190,6 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {/* Toggle mode */}
             <div className="mt-5 text-center">
               <button
                 onClick={() => {
