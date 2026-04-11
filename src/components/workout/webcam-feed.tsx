@@ -44,6 +44,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">(settings.cameraFacing || "user");
   const [formCheckProgress, setFormCheckProgress] = useState(0);
   const [formDetectedBanner, setFormDetectedBanner] = useState(false);
+  const [formCheckHint, setFormCheckHint] = useState("");
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -97,6 +98,7 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
       formCheckFramesRef.current = 0;
       setFormCheckProgress(0);
       setFormDetectedBanner(false);
+      setFormCheckHint("");
     }
   }, [isFormChecking]);
 
@@ -168,36 +170,75 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
 
   const handleFrame = useCallback(
     (landmarks: Landmark[]) => {
-      const KEY_LANDMARKS = [11, 12, 13, 14, 23, 24];
-      const MIN_VISIBILITY = 0.6;
-      const visibleCount = KEY_LANDMARKS.filter(
-        (idx) => landmarks[idx] && (landmarks[idx].visibility ?? 0) >= MIN_VISIBILITY
+      const CORE_LANDMARKS = [11, 12, 13, 14, 23, 24];
+      const MIN_VIS = 0.6;
+      const coreVisible = CORE_LANDMARKS.filter(
+        (idx) => landmarks[idx] && (landmarks[idx].visibility ?? 0) >= MIN_VIS
       ).length;
 
-      // ── Form-check phase: detect starting position before counting reps ──
       if (isFormChecking) {
         const config = getExercise(exerciseRef.current);
         if (!config) return;
 
-        // Draw skeleton even during form check for visual feedback
         drawSkeletonRef.current(landmarks);
 
-        if (visibleCount < 4) {
-          formCheckFramesRef.current = 0;
-          setFormCheckProgress(0);
+        // 1) Check exercise-specific joints are visible
+        const requiredJoints = config.targetJoints;
+        const jointVisible = requiredJoints.filter(
+          (idx) => landmarks[idx] && (landmarks[idx].visibility ?? 0) >= MIN_VIS
+        ).length;
+        const jointRatio = requiredJoints.length > 0 ? jointVisible / requiredJoints.length : 0;
+
+        // 2) Measure body size in frame (shoulder-to-ankle vertical span)
+        const shoulderY = Math.min(
+          landmarks[11]?.y ?? 1, landmarks[12]?.y ?? 1
+        );
+        const ankleY = Math.max(
+          landmarks[27]?.y ?? 0, landmarks[28]?.y ?? 0
+        );
+        const bodySpan = ankleY - shoulderY;
+
+        const shouldersOk = (landmarks[11]?.visibility ?? 0) >= MIN_VIS
+          && (landmarks[12]?.visibility ?? 0) >= MIN_VIS;
+        const anklesOk = (landmarks[27]?.visibility ?? 0) >= 0.4
+          || (landmarks[28]?.visibility ?? 0) >= 0.4;
+
+        // 3) Determine guidance hint
+        let hint = "";
+        let bodyOk = false;
+
+        if (coreVisible < 4 || jointRatio < 0.5) {
+          hint = "Step fully into the camera view";
+        } else if (!shouldersOk || (!anklesOk && bodySpan < 0.15)) {
+          hint = "Make sure your full body is visible";
+        } else if (bodySpan > 0 && bodySpan < 0.2) {
+          hint = "Move closer to the camera";
+        } else if (bodySpan > 0.88) {
+          hint = "Move farther from the camera";
+        } else {
+          bodyOk = true;
+        }
+
+        if (!bodyOk) {
+          formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 3);
+          setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
+          setFormCheckHint(hint);
           return;
         }
 
+        // 4) Body is positioned well — now check starting pose
         const angles = getCommonAngles(landmarks);
         const detectedPhase = config.detectPhase(angles, landmarks);
         const startPhase = config.phases[0];
 
-        if (detectedPhase === startPhase) {
+        if (detectedPhase === startPhase && jointRatio >= 0.7) {
           formCheckFramesRef.current++;
+          setFormCheckHint("Hold your position...");
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
 
           if (formCheckFramesRef.current >= FORM_CHECK_REQUIRED_FRAMES) {
             setFormDetectedBanner(true);
+            setFormCheckHint("");
             setTimeout(() => {
               passFormCheck();
               setFormDetectedBanner(false);
@@ -206,13 +247,13 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         } else {
           formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 2);
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
+          setFormCheckHint("Get into the starting position");
         }
         return;
       }
 
-      // ── Normal workout: count reps ──
       if (!isWorkoutActive || isPaused || !repDetectorRef.current) return;
-      if (visibleCount < 4) return;
+      if (coreVisible < 4) return;
 
       const result = repDetectorRef.current.update(landmarks);
       setCurrentScore(result.score);
@@ -378,10 +419,10 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
               <ScanLine className="h-7 w-7 text-cyan-400 animate-pulse" />
             </div>
             <div className="text-sm font-bold uppercase tracking-[0.15em] text-cyan-400 mb-2">
-              Analyzing Your Form
+              Checking Your Position
             </div>
-            <div className="text-xs text-white/60 mb-4">
-              Get into the starting position for this exercise
+            <div className="text-xs text-white/80 mb-4 min-h-[1.25rem] transition-all duration-300">
+              {formCheckHint || "Get into the starting position"}
             </div>
             <div className="w-48 mx-auto h-2 rounded-full bg-white/10 overflow-hidden">
               <div
@@ -389,9 +430,11 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
                 style={{ width: `${formCheckProgress}%` }}
               />
             </div>
-            <div className="text-[10px] text-white/40 mt-2 tabular-nums">
-              {formCheckProgress < 100 ? "Hold your position..." : "Almost there..."}
-            </div>
+            {formCheckProgress > 0 && (
+              <div className="text-[10px] text-white/40 mt-2 tabular-nums">
+                {formCheckProgress < 100 ? `${formCheckProgress}%` : "Almost there..."}
+              </div>
+            )}
           </div>
         </div>
       )}
