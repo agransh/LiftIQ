@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
@@ -9,7 +8,6 @@ import { Zap, ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,34 +21,44 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     setMessage("");
-    const supabase = createClient();
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
-    if (err) {
-      setError(err.message);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+      if (err) {
+        setError(err.message);
+        return;
+      }
+      // Full page load so auth cookies are on the request before middleware runs.
+      // (Soft router.push can race middleware → bounce to /login with loading still true = stuck spinner.)
+      window.location.assign("/");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign in failed");
+    } finally {
       setLoading(false);
-      return;
     }
-    router.push("/");
-    router.refresh();
   };
 
   const handleSignup = async () => {
     setLoading(true);
     setError("");
     setMessage("");
-    const supabase = createClient();
-    const { error: err } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { full_name: fullName } },
-    });
-    if (err) {
-      setError(err.message);
+    try {
+      const supabase = createClient();
+      const { error: err } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { full_name: fullName } },
+      });
+      if (err) {
+        setError(err.message);
+        return;
+      }
+      setMessage("Check your email for a confirmation link!");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Sign up failed");
+    } finally {
       setLoading(false);
-      return;
     }
-    setMessage("Check your email for a confirmation link!");
-    setLoading(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
