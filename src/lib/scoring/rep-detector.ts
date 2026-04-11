@@ -1,11 +1,11 @@
 import { ExerciseConfig, Landmark, RepResult, JointFeedback } from "@/types";
 import { getCommonAngles } from "@/lib/pose/angle-utils";
 
-/** Consecutive matching raw frames before stable phase updates (lower = snappier rep detection). */
+/** Consecutive matching raw frames before stable phase updates. */
 const PHASE_STABILITY_FRAMES = 2;
-/** Min gap between counted reps — too high drops fast sets; too low risks double-count from pose jitter. */
-const REP_COOLDOWN_MS = 200;
-const ANGLE_SMOOTHING_WINDOW = 3;
+/** Min gap between counted reps — prevents jitter double-counts without dropping fast sets. */
+const REP_COOLDOWN_MS = 150;
+const ANGLE_SMOOTHING_WINDOW = 2;
 
 export class RepDetector {
   private config: ExerciseConfig;
@@ -85,12 +85,16 @@ export class RepDetector {
     repCount: number;
   } {
     const rawAngles = getCommonAngles(landmarks);
-    const angles = this.smoothAngles(rawAngles);
-    const rawPhase = this.config.detectPhase(angles, landmarks);
+    const smoothedAngles = this.smoothAngles(rawAngles);
+
+    // Phase detection uses RAW angles so brief positions (e.g. squat bottom) aren't averaged away.
+    const rawPhase = this.config.detectPhase(rawAngles, landmarks);
     const phase = this.getStablePhase(rawPhase);
     const deepPhase = this.getDeepPhase();
-    const { score, issues } = this.config.scoreRep(angles, landmarks, phase);
-    const cues = this.config.getCoachingCues(angles, landmarks, phase);
+
+    // Scoring/cues use smoothed angles for less noisy feedback.
+    const { score, issues } = this.config.scoreRep(smoothedAngles, landmarks, phase);
+    const cues = this.config.getCoachingCues(smoothedAngles, landmarks, phase);
 
     this.currentIssues = [...this.currentIssues, ...issues];
     this.scoreAccumulator.push(score);
@@ -106,7 +110,7 @@ export class RepDetector {
       const startPhase = phases[0];
       const midPhases = phases.slice(1);
 
-      if (!this.inRep && midPhases.includes(phase)) {
+      if (!this.inRep && (midPhases.includes(phase) || midPhases.includes(rawPhase))) {
         this.inRep = true;
         this.reachedDeepPhase = false;
         this.currentIssues = [];
@@ -136,11 +140,14 @@ export class RepDetector {
             timestamp: now,
           };
           repCompleted = true;
+
+          this.inRep = false;
+          this.reachedDeepPhase = false;
+          this.currentIssues = [];
+          this.scoreAccumulator = [];
         }
-        this.inRep = false;
-        this.reachedDeepPhase = false;
-        this.currentIssues = [];
-        this.scoreAccumulator = [];
+        // If cooldown blocked the count, DON'T reset the cycle — keep inRep
+        // so the movement can still be counted once cooldown expires.
       }
     }
 

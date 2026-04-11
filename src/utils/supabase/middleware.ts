@@ -1,12 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-/**
- * Set AUTH_REQUIRED=true (e.g. on Vercel) to require Supabase login again.
- * When unset/false, all routes are open and /login redirects to /.
- */
-const LOGIN_GATE_ENABLED = process.env.AUTH_REQUIRED === "true";
-
 /** Routes that never require a Supabase session (auth pages + OAuth return). */
 const PUBLIC_PATH_PREFIXES = ["/login", "/auth/callback"];
 
@@ -22,16 +16,6 @@ function redirectToLogin(request: NextRequest) {
 
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-
-  if (!LOGIN_GATE_ENABLED) {
-    if (pathname === "/login" || pathname.startsWith("/login/")) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      return NextResponse.redirect(url);
-    }
-    return NextResponse.next();
-  }
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
