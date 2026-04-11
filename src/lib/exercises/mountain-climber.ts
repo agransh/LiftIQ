@@ -10,11 +10,10 @@ export const mountainClimberConfig: ExerciseConfig = {
   name: "Mountain Climber",
   description: "Start in plank and alternate driving knees toward chest.",
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_HIP, L.RIGHT_HIP, L.LEFT_KNEE, L.RIGHT_KNEE],
-  phases: ["neutral", "left-drive", "right-drive"],
+  phases: ["neutral", "drive"],
   caloriesPerRep: 0.3,
   detectPhase(angles: Record<string, number>): string {
-    if (angles.leftHip < 100) return "left-drive";
-    if (angles.rightHip < 100) return "right-drive";
+    if (angles.leftHip < 100 || angles.rightHip < 100) return "drive";
     return "neutral";
   },
   scoreRep(angles: Record<string, number>, landmarks: Landmark[]) {

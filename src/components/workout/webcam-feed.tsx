@@ -19,15 +19,20 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     selectedExercise,
     isWorkoutActive,
     isPaused,
+    isRecording,
     setCurrentScore,
     setRepCount,
     setCurrentPhase,
     setCurrentCues,
     setCurrentIssues,
     addRepResult,
+    setRecordingBlob,
     settings,
     setPoseStatus,
   } = useWorkoutStore();
+
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   const repDetectorRef = useRef<RepDetector | null>(null);
   const exerciseRef = useRef(selectedExercise);
@@ -127,6 +132,43 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   useEffect(() => {
     setPoseStatus(status);
   }, [status, setPoseStatus]);
+
+  // Start/stop MediaRecorder based on recording state
+  useEffect(() => {
+    if (isWorkoutActive && isRecording && videoRef.current?.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      recordedChunksRef.current = [];
+
+      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+        ? "video/webm;codecs=vp9"
+        : "video/webm";
+
+      try {
+        const recorder = new MediaRecorder(stream, { mimeType });
+        recorder.ondataavailable = (e) => {
+          if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+        };
+        recorder.onstop = () => {
+          if (recordedChunksRef.current.length > 0) {
+            const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+            setRecordingBlob(blob);
+          }
+          recordedChunksRef.current = [];
+        };
+        recorder.start(1000);
+        mediaRecorderRef.current = recorder;
+      } catch {
+        console.warn("MediaRecorder not supported");
+      }
+    }
+
+    return () => {
+      if (mediaRecorderRef.current?.state === "recording") {
+        mediaRecorderRef.current.stop();
+        mediaRecorderRef.current = null;
+      }
+    };
+  }, [isWorkoutActive, isRecording, videoRef, setRecordingBlob]);
 
   return (
     <div

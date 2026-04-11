@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, Dumbbell, Settings, LogOut } from "lucide-react";
+import { Activity, BarChart3, Dumbbell, Settings, LogOut, Video } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Home", icon: Activity },
   { href: "/workout", label: "Workout", icon: Dumbbell },
+  { href: "/recordings", label: "Recordings", icon: Video },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
