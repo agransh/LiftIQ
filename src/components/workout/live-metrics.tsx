@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { useWorkoutStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
-import { Repeat, Timer, TrendingUp, Star } from "lucide-react";
+import { Repeat, Timer, TrendingUp, Star, Flame, Crown } from "lucide-react";
 
 function getScoreColor(s: number) { return s >= 85 ? "text-emerald-400" : s >= 65 ? "text-amber-400" : "text-rose-400"; }
 function getBarColor(s: number) { return s >= 85 ? "bg-emerald-400" : s >= 65 ? "bg-amber-400" : "bg-rose-400"; }
@@ -104,15 +104,54 @@ export function LiveMetrics() {
         </div>
       )}
 
-      {bestRepIndex >= 0 && (
-        <div className="glass-card rounded-xl p-3.5">
-          <div className="flex items-center gap-1.5 text-[9px] text-zinc-600 uppercase tracking-[0.15em] mb-1.5">
-            <Star className="h-3 w-3 text-amber-400" /> Best Rep
-          </div>
-          <div className="flex items-center gap-2">
-            <span className={cn("text-xl font-bold tabular-nums", getScoreColor(bestRepScore))}>{bestRepScore}</span>
-            <span className="text-xs text-zinc-600">Rep #{bestRepIndex + 1}</span>
-          </div>
+      {bestRepIndex >= 0 && <BestRepTile />}
+    </div>
+  );
+}
+
+function BestRepTile() {
+  const { bestRepScore, bestRepIndex, perfectRepCount } = useWorkoutStore();
+  const [glowActive, setGlowActive] = useState(false);
+  const prevBest = useRef(bestRepScore);
+  const isPerfect = bestRepScore >= 90;
+
+  useEffect(() => {
+    if (bestRepScore > prevBest.current && bestRepScore > 0) {
+      setGlowActive(true);
+      const t = setTimeout(() => setGlowActive(false), 1200);
+      prevBest.current = bestRepScore;
+      return () => clearTimeout(t);
+    }
+    prevBest.current = bestRepScore;
+  }, [bestRepScore]);
+
+  return (
+    <div className={cn(
+      "rounded-xl p-3.5 transition-all duration-700",
+      isPerfect
+        ? "bg-gradient-to-br from-amber-500/[0.08] to-orange-500/[0.04] border border-amber-500/15"
+        : "glass-card",
+      glowActive && isPerfect && "shadow-[0_0_24px_-4px_rgba(245,158,11,0.3)]",
+      glowActive && !isPerfect && "shadow-[0_0_24px_-4px_rgba(6,182,212,0.2)]",
+    )}>
+      <div className="flex items-center gap-1.5 text-[9px] text-zinc-600 uppercase tracking-[0.15em] mb-1.5">
+        {isPerfect ? <Crown className="h-3 w-3 text-amber-400" /> : <Star className="h-3 w-3 text-amber-400" />}
+        {isPerfect ? "Perfect Rep" : "Best Rep"}
+      </div>
+      <div className="flex items-center gap-2">
+        <span className={cn(
+          "text-xl font-bold tabular-nums transition-all duration-300",
+          getScoreColor(bestRepScore),
+          glowActive && "scale-110"
+        )}>
+          {bestRepScore}
+        </span>
+        <span className="text-xs text-zinc-600">Rep #{bestRepIndex + 1}</span>
+      </div>
+      {perfectRepCount > 1 && (
+        <div className="flex items-center gap-1 mt-1.5">
+          <Flame className="h-3 w-3 text-amber-400/70" />
+          <span className="text-[10px] text-amber-400/60 font-semibold tabular-nums">{perfectRepCount} perfect reps this set</span>
         </div>
       )}
     </div>

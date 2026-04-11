@@ -58,6 +58,23 @@ export function WorkoutControls() {
       ? repResults.reduce((best, r, i) => (r.score > repResults[best].score ? i : best), 0)
       : -1;
 
+    const bestRep = bestIdx >= 0 ? repResults[bestIdx] : null;
+
+    // Compute "why it was the best" reasons
+    const bestRepReasons: import("@/types").PerfectRepReason[] = [];
+    if (bestRep) {
+      if (bestRep.score >= 90) bestRepReasons.push("high_score");
+      if (bestRep.issues.length === 0) bestRepReasons.push("zero_issues");
+      if ((bestRep.issueCount ?? bestRep.issues.length) === 0 && bestRep.score >= 85) bestRepReasons.push("full_rom");
+      if (bestRep.score >= 95) bestRepReasons.push("stable_form");
+      if (bestIdx > 0) {
+        const prev = repResults[bestIdx - 1];
+        if (Math.abs(bestRep.score - prev.score) <= 5 && bestRep.score >= 80) bestRepReasons.push("consistent_tempo");
+      }
+    }
+
+    const perfectRepCount = repResults.filter((r) => r.score >= 90).length;
+
     const allIssues = repResults.flatMap((r) => r.issues);
     const issueCounts: Record<string, number> = {};
     for (const iss of allIssues) if (iss.message) issueCounts[iss.message] = (issueCounts[iss.message] || 0) + 1;
@@ -84,7 +101,10 @@ export function WorkoutControls() {
       isRecorded: isRecording,
       recordingId,
       bestRepIndex: bestIdx,
-      bestRepScore: bestIdx >= 0 ? repResults[bestIdx].score : 0,
+      bestRepScore: bestRep?.score ?? 0,
+      bestRepTimestamp: bestRep?.timestamp ?? 0,
+      bestRepReasons,
+      perfectRepCount,
       scoreTimeline,
       mistakeSummary,
     };

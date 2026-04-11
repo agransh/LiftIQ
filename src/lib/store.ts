@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { RepResult, JointFeedback, WorkoutSession, UserSettings, UserProfile, PoseDetectionStatus } from "@/types";
+import { RepResult, JointFeedback, WorkoutSession, UserSettings, UserProfile, PoseDetectionStatus, PerfectRepReason } from "@/types";
 import type { VoiceState } from "@/lib/ai/voice";
 
 interface WorkoutState {
@@ -52,7 +52,10 @@ interface WorkoutState {
   // Perfect rep tracking
   bestRepScore: number;
   bestRepIndex: number;
+  bestRepTimestamp: number;
+  bestRepReasons: PerfectRepReason[];
   perfectRepAchieved: boolean;
+  perfectRepCount: number;
   dismissPerfectRep: () => void;
 
   // Recording
@@ -123,18 +126,53 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
       const newResults = [...state.repResults, rep];
       const newIndex = newResults.length - 1;
       const isBest = rep.score > state.bestRepScore;
+
+      if (!isBest) {
+        const isPerfect = rep.score >= 90;
+        return {
+          repResults: newResults,
+          perfectRepCount: state.perfectRepCount + (isPerfect ? 1 : 0),
+        };
+      }
+
+      const reasons: PerfectRepReason[] = [];
+      if (rep.score >= 90) reasons.push("high_score");
+      if (rep.issues.length === 0) reasons.push("zero_issues");
+      const issueCount = rep.issueCount ?? rep.issues.length;
+      if (issueCount === 0 && rep.score >= 85) reasons.push("full_rom");
+      if (rep.score >= 95) reasons.push("stable_form");
+      if (newResults.length >= 2) {
+        const prev = newResults[newIndex - 1];
+        if (Math.abs(rep.score - prev.score) <= 5 && rep.score >= 80) reasons.push("consistent_tempo");
+      }
+
+      const isPerfect = rep.score >= 90;
       return {
         repResults: newResults,
-        ...(isBest
-          ? { bestRepScore: rep.score, bestRepIndex: newIndex, perfectRepAchieved: rep.score >= 90 }
-          : {}),
+        bestRepScore: rep.score,
+        bestRepIndex: newIndex,
+        bestRepTimestamp: rep.timestamp,
+        bestRepReasons: reasons,
+        perfectRepAchieved: isPerfect,
+        perfectRepCount: state.perfectRepCount + (isPerfect ? 1 : 0),
       };
     }),
-  clearRepResults: () => set({ repResults: [], bestRepScore: 0, bestRepIndex: -1, perfectRepAchieved: false }),
+  clearRepResults: () => set({
+    repResults: [],
+    bestRepScore: 0,
+    bestRepIndex: -1,
+    bestRepTimestamp: 0,
+    bestRepReasons: [],
+    perfectRepAchieved: false,
+    perfectRepCount: 0,
+  }),
 
   bestRepScore: 0,
   bestRepIndex: -1,
+  bestRepTimestamp: 0,
+  bestRepReasons: [],
   perfectRepAchieved: false,
+  perfectRepCount: 0,
   dismissPerfectRep: () => set({ perfectRepAchieved: false }),
 
   recordingBlob: null,

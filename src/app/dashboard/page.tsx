@@ -92,6 +92,12 @@ export default function DashboardPage() {
 
   const perfectReps = allRepScores.filter(s => s >= 90).length;
   const totalAllReps = allRepScores.length;
+  const perfectRate = totalAllReps > 0 ? Math.round((perfectReps / totalAllReps) * 100) : 0;
+
+  const allTimeBestRep = sessions.reduce((best, s) => {
+    const score = s.bestRepScore ?? 0;
+    return score > best.score ? { score, exercise: s.exerciseName || s.exercise, date: s.startTime } : best;
+  }, { score: 0, exercise: "", date: 0 });
 
   const hasData = sessions.length > 0;
   const hasAny = hasData || foodLog.length > 0;
@@ -156,6 +162,30 @@ export default function DashboardPage() {
                 </GlassCard>
               </div>
             </div>
+
+            {/* ── Perfect Rep Highlight ── */}
+            {hasData && perfectReps > 0 && (
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <GlassCard className="p-5 relative overflow-hidden">
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/[0.05] via-transparent to-transparent" />
+                  <div className="relative">
+                    <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500 mb-1 flex items-center gap-1.5"><Flame className="h-3.5 w-3.5 text-amber-400" />All-Time Best Rep</div>
+                    <div className="text-3xl font-black text-amber-400 tabular-nums">{allTimeBestRep.score}<span className="text-lg text-amber-400/40 ml-0.5">/100</span></div>
+                    {allTimeBestRep.exercise && <div className="text-[10px] text-zinc-600 mt-1">{allTimeBestRep.exercise} · {new Date(allTimeBestRep.date).toLocaleDateString(undefined, { month: "short", day: "numeric" })}</div>}
+                  </div>
+                </GlassCard>
+                <GlassCard className="p-5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500 mb-1 flex items-center gap-1.5"><Star className="h-3.5 w-3.5 text-amber-400" />Perfect Reps</div>
+                  <div className="text-3xl font-black text-amber-400 tabular-nums">{perfectReps}</div>
+                  <div className="text-[10px] text-zinc-600 mt-1">out of {totalAllReps} total reps</div>
+                </GlassCard>
+                <GlassCard className="p-5">
+                  <div className="text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-500 mb-1 flex items-center gap-1.5"><Activity className="h-3.5 w-3.5 text-cyan-400" />Perfect Rep Rate</div>
+                  <div className="text-3xl font-black text-cyan-400 tabular-nums">{perfectRate}<span className="text-lg text-cyan-400/40 ml-0.5">%</span></div>
+                  <Progress value={perfectRate} className="h-1.5 mt-2.5 bg-white/[0.04]" indicatorClassName={cn("transition-all duration-500", perfectRate >= 50 ? "bg-emerald-400" : perfectRate >= 25 ? "bg-amber-400" : "bg-cyan-400")} />
+                </GlassCard>
+              </div>
+            )}
 
             {/* ── Food Tracker ── */}
             <GlassCard className="overflow-hidden">
@@ -269,22 +299,26 @@ export default function DashboardPage() {
                   <h3 className="text-sm font-bold">Recent Sessions</h3>
                 </div>
                 <div className="p-4 space-y-2">
-                  {sessions.slice(-10).reverse().map((session) => (
+                  {sessions.slice(-10).reverse().map((session) => {
+                    const hasPerfect = (session.bestRepScore ?? 0) >= 90;
+                    return (
                     <div key={session.id} className="flex items-center justify-between gap-3 rounded-xl glass-card px-4 py-3 hover:bg-white/[0.03] transition-colors">
                       <div className="min-w-0 flex-1">
                         <div className="font-semibold text-sm truncate flex items-center gap-2 text-zinc-200">
                           {session.exerciseName || session.exercise.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
                           {session.weight != null && <span className="text-[10px] text-zinc-600 tabular-nums">{session.weight} lbs</span>}
                           {session.isRecorded && <span className="text-[9px] text-cyan-400/60 font-bold uppercase tracking-wider">REC</span>}
+                          {hasPerfect && <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-400 font-bold uppercase tracking-wider"><Flame className="h-2.5 w-2.5" />PR</span>}
                         </div>
-                        <div className="text-[10px] text-zinc-600 mt-0.5">{new Date(session.startTime).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · {session.reps.length} reps</div>
+                        <div className="text-[10px] text-zinc-600 mt-0.5">{new Date(session.startTime).toLocaleDateString(undefined, { month: "short", day: "numeric" })} · {session.reps.length} reps{hasPerfect ? ` · Best ${session.bestRepScore}` : ""}</div>
                       </div>
                       <div className="flex flex-col items-end gap-1 shrink-0">
                         <span className={cn("text-lg font-black tabular-nums", session.totalScore >= 85 ? "text-emerald-400" : session.totalScore >= 65 ? "text-amber-400" : "text-rose-400")}>{session.totalScore}</span>
                         <Progress value={session.totalScore} className="w-14 h-1 bg-white/[0.04]" indicatorClassName={session.totalScore >= 85 ? "bg-emerald-400" : session.totalScore >= 65 ? "bg-amber-400" : "bg-rose-400"} />
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </GlassCard>
             )}

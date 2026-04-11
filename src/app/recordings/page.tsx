@@ -10,8 +10,8 @@ import { getSessions } from "@/lib/storage";
 import { getExplanationsForIssues, generateFormExplanations } from "@/lib/ai/explainer";
 import { FormExplanation } from "@/lib/ai/explainer-prompts";
 import { getAllRecordingsMeta, getRecordingBlob, deleteRecording, type RecordingMeta } from "@/lib/storage/recordings-db";
-import { WorkoutSession } from "@/types";
-import { Video, Play, Trash2, X, Clock, Target, Repeat, Download, Star, AlertTriangle, Sparkles, MessageCircle, Flame, Lightbulb, Loader2, Wrench } from "lucide-react";
+import { WorkoutSession, PERFECT_REP_REASON_LABELS, PerfectRepReason } from "@/types";
+import { Video, Play, Trash2, X, Clock, Target, Repeat, Download, Star, AlertTriangle, Sparkles, MessageCircle, Flame, Lightbulb, Loader2, Wrench, Crown, CheckCircle2 } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceDot } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -94,12 +94,18 @@ export default function RecordingsPage() {
           </GlassCard>
         ) : (
           <motion.div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-            {recordings.map((rec, i) => (
+            {recordings.map((rec, i) => {
+              const recSession = getSessions().find(s => s.recordingId === rec.id || s.id === rec.sessionId);
+              const hasPerfect = recSession ? (recSession.bestRepScore ?? 0) >= 90 : false;
+              return (
               <motion.div key={rec.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
                 <GlassCard className="h-full p-5 flex flex-col group hover:bg-white/[0.03] transition-all duration-300">
                   <div className="flex items-start justify-between gap-3 mb-4">
                     <div>
-                      <h3 className="font-bold truncate text-zinc-100">{rec.exerciseName}</h3>
+                      <h3 className="font-bold truncate text-zinc-100 flex items-center gap-2">
+                        {rec.exerciseName}
+                        {hasPerfect && <span className="inline-flex items-center gap-0.5 text-[9px] text-amber-400 font-bold uppercase"><Flame className="h-2.5 w-2.5" />Perfect</span>}
+                      </h3>
                       <p className="text-xs text-zinc-600">{new Date(rec.createdAt).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} · {new Date(rec.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</p>
                     </div>
                     <Badge variant={scoreBadgeVariant(rec.score)} className="font-mono tabular-nums text-[11px]">{rec.score}</Badge>
@@ -123,12 +129,25 @@ export default function RecordingsPage() {
                   </div>
                 </GlassCard>
               </motion.div>
-            ))}
+              );
+            })}
           </motion.div>
         )}
       </div>
     </div>
   );
+}
+
+function computePerfectReasons(reps: { score: number; issues: { message?: string }[]; issueCount?: number }[], bestIdx: number): PerfectRepReason[] {
+  if (bestIdx < 0 || bestIdx >= reps.length) return [];
+  const rep = reps[bestIdx];
+  const reasons: PerfectRepReason[] = [];
+  if (rep.score >= 90) reasons.push("high_score");
+  if (rep.issues.length === 0) reasons.push("zero_issues");
+  if ((rep.issueCount ?? rep.issues.length) === 0 && rep.score >= 85) reasons.push("full_rom");
+  if (rep.score >= 95) reasons.push("stable_form");
+  if (bestIdx > 0 && Math.abs(rep.score - reps[bestIdx - 1].score) <= 5 && rep.score >= 80) reasons.push("consistent_tempo");
+  return reasons;
 }
 
 function SessionInsightsPanel({ session }: { session: WorkoutSession }) {
@@ -186,11 +205,36 @@ function SessionInsightsPanel({ session }: { session: WorkoutSession }) {
         ))}
       </div>
 
-      {/* Best rep highlight */}
-      {bestScore >= 90 && (
-        <div className="flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-2">
-          <Flame className="h-4 w-4 text-amber-400" />
-          <span className="text-xs font-bold text-amber-300">Perfect Rep #{bestIdx + 1} — Score {bestScore}</span>
+      {/* Best rep highlight with reasons */}
+      {bestScore >= 85 && (
+        <div className={cn(
+          "rounded-lg border px-3 py-2.5",
+          bestScore >= 90
+            ? "bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-rose-500/10 border-amber-500/20"
+            : "bg-emerald-500/[0.06] border-emerald-500/15"
+        )}>
+          <div className="flex items-center gap-2 mb-1.5">
+            {bestScore >= 90
+              ? <Crown className="h-4 w-4 text-amber-400" />
+              : <Star className="h-4 w-4 text-emerald-400" />}
+            <span className={cn("text-xs font-bold", bestScore >= 90 ? "text-amber-300" : "text-emerald-300")}>
+              {bestScore >= 90 ? "Perfect" : "Best"} Rep #{bestIdx + 1} — Score {bestScore}
+            </span>
+          </div>
+          {(() => {
+            const reasons = session.bestRepReasons || computePerfectReasons(reps, bestIdx);
+            const display = reasons.filter((r: PerfectRepReason) => r in PERFECT_REP_REASON_LABELS).slice(0, 3);
+            if (display.length === 0) return null;
+            return (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {display.map((r: PerfectRepReason) => (
+                  <span key={r} className="inline-flex items-center gap-0.5 text-[9px] font-semibold rounded-full bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 text-zinc-400">
+                    <CheckCircle2 className="h-2 w-2" />{PERFECT_REP_REASON_LABELS[r]}
+                  </span>
+                ))}
+              </div>
+            );
+          })()}
         </div>
       )}
 

@@ -8,7 +8,8 @@ import { FormExplanation } from "@/lib/ai/explainer-prompts";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/ui/glass-card";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Target, Repeat, Flame, X, AlertTriangle, Sparkles, CheckCircle2, MessageCircle, Star, Lightbulb, Loader2, Wrench } from "lucide-react";
+import { PERFECT_REP_REASON_LABELS, PerfectRepReason } from "@/types";
+import { Trophy, Target, Repeat, Flame, X, AlertTriangle, Sparkles, CheckCircle2, MessageCircle, Star, Lightbulb, Loader2, Wrench, Crown } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceDot } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -107,19 +108,14 @@ export function PostWorkoutSummary() {
               ))}
             </div>
 
-            {/* Best rep highlight */}
-            {bestRepScore >= 90 && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="flex items-center gap-3 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-rose-500/10 border border-amber-500/20 px-4 py-3"
-              >
-                <Flame className="h-5 w-5 text-amber-400 shrink-0" />
-                <div>
-                  <span className="text-sm font-bold text-amber-300">Perfect Rep #{bestRepIndex + 1}</span>
-                  <span className="text-xs text-amber-400/70 ml-2">Score {bestRepScore}/100</span>
-                </div>
-              </motion.div>
+            {/* Perfect Rep card */}
+            {bestRepScore >= 85 && (
+              <PerfectRepCard
+                repNumber={bestRepIndex + 1}
+                score={bestRepScore}
+                reasons={lastSession.bestRepReasons || computeReasons(reps, bestRepIndex)}
+                isPerfect={bestRepScore >= 90}
+              />
             )}
 
             {/* Score per rep chart */}
@@ -197,6 +193,84 @@ export function PostWorkoutSummary() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+function computeReasons(reps: { score: number; issues: { message?: string }[]; issueCount?: number }[], bestIdx: number): PerfectRepReason[] {
+  if (bestIdx < 0 || bestIdx >= reps.length) return [];
+  const rep = reps[bestIdx];
+  const reasons: PerfectRepReason[] = [];
+  if (rep.score >= 90) reasons.push("high_score");
+  if (rep.issues.length === 0) reasons.push("zero_issues");
+  if ((rep.issueCount ?? rep.issues.length) === 0 && rep.score >= 85) reasons.push("full_rom");
+  if (rep.score >= 95) reasons.push("stable_form");
+  if (bestIdx > 0) {
+    const prev = reps[bestIdx - 1];
+    if (Math.abs(rep.score - prev.score) <= 5 && rep.score >= 80) reasons.push("consistent_tempo");
+  }
+  return reasons;
+}
+
+function PerfectRepCard({ repNumber, score, reasons, isPerfect }: { repNumber: number; score: number; reasons: PerfectRepReason[]; isPerfect: boolean }) {
+  const displayReasons = reasons.filter((r) => r in PERFECT_REP_REASON_LABELS).slice(0, 4);
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ delay: 0.15 }}
+    >
+      <GlassCard className="p-0 overflow-hidden">
+        <div className={cn(
+          "h-[2px]",
+          isPerfect
+            ? "bg-gradient-to-r from-amber-500/80 via-orange-500/60 to-rose-500/40"
+            : "bg-gradient-to-r from-emerald-500/60 via-cyan-500/40 to-transparent"
+        )} />
+        <div className="p-4">
+          <div className="flex items-center gap-3 mb-3">
+            <div className={cn(
+              "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
+              isPerfect
+                ? "bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/20"
+                : "bg-gradient-to-br from-emerald-500/15 to-cyan-500/10 border border-emerald-500/15"
+            )}>
+              {isPerfect ? <Crown className="h-5 w-5 text-amber-400" /> : <Star className="h-5 w-5 text-emerald-400" />}
+            </div>
+            <div>
+              <div className={cn("text-sm font-black", isPerfect ? "text-amber-200" : "text-emerald-300")}>
+                {isPerfect ? "Perfect Rep" : "Best Rep"} #{repNumber}
+              </div>
+              <div className="text-xs text-zinc-500 tabular-nums">Score {score}/100</div>
+            </div>
+          </div>
+
+          {displayReasons.length > 0 && (
+            <div className="space-y-1.5">
+              <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.15em]">What made it strong</div>
+              <div className="flex flex-wrap gap-1.5">
+                {displayReasons.map((reason, i) => (
+                  <motion.span
+                    key={reason}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 + i * 0.06 }}
+                    className={cn(
+                      "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold",
+                      isPerfect
+                        ? "bg-amber-500/10 border border-amber-500/15 text-amber-300/80"
+                        : "bg-emerald-500/10 border border-emerald-500/15 text-emerald-300/80"
+                    )}
+                  >
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                    {PERFECT_REP_REASON_LABELS[reason]}
+                  </motion.span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </GlassCard>
+    </motion.div>
   );
 }
 

@@ -22,7 +22,19 @@ export interface RepResult {
   score: number;
   issues: JointFeedback[];
   timestamp: number;
+  /** Number of zero-issue frames during this rep — higher = cleaner */
+  issueCount?: number;
 }
+
+export type PerfectRepReason = "high_score" | "zero_issues" | "full_rom" | "stable_form" | "consistent_tempo";
+
+export const PERFECT_REP_REASON_LABELS: Record<PerfectRepReason, string> = {
+  high_score: "Excellent form score",
+  zero_issues: "No form corrections needed",
+  full_rom: "Full range of motion",
+  stable_form: "Rock-solid stability",
+  consistent_tempo: "Smooth, controlled tempo",
+};
 
 export interface ExerciseConfig {
   id: string;
@@ -66,6 +78,9 @@ export interface WorkoutSession {
   recordingId?: string;
   bestRepIndex?: number;
   bestRepScore?: number;
+  bestRepTimestamp?: number;
+  bestRepReasons?: PerfectRepReason[];
+  perfectRepCount?: number;
   scoreTimeline?: { time: number; score: number }[];
   mistakeSummary?: { issue: string; count: number }[];
 }
