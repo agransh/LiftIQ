@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { AppShell } from "@/components/providers/app-shell";
 import "./globals.css";
 
 const inter = Inter({
@@ -51,7 +52,7 @@ export default function RootLayout({
           <div className="absolute bottom-[-20%] right-[10%] h-[50vh] w-[50vh] rounded-full bg-blue-500/[0.03] blur-[100px]" />
           <div className="absolute top-[40%] right-[30%] h-[30vh] w-[30vh] rounded-full bg-violet-500/[0.02] blur-[80px]" />
         </div>
-        {children}
+        <AppShell>{children}</AppShell>
       </body>
     </html>
   );
