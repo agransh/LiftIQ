@@ -1,8 +1,10 @@
 import { ExerciseConfig, Landmark, RepResult, JointFeedback } from "@/types";
 import { getCommonAngles } from "@/lib/pose/angle-utils";
 
-const PHASE_STABILITY_FRAMES = 3;
-const REP_COOLDOWN_MS = 400;
+/** Consecutive matching raw frames before stable phase updates (lower = snappier rep detection). */
+const PHASE_STABILITY_FRAMES = 2;
+/** Min gap between counted reps — too high drops fast sets; too low risks double-count from pose jitter. */
+const REP_COOLDOWN_MS = 200;
 const ANGLE_SMOOTHING_WINDOW = 3;
 
 export class RepDetector {
@@ -86,6 +88,7 @@ export class RepDetector {
     const angles = this.smoothAngles(rawAngles);
     const rawPhase = this.config.detectPhase(angles, landmarks);
     const phase = this.getStablePhase(rawPhase);
+    const deepPhase = this.getDeepPhase();
     const { score, issues } = this.config.scoreRep(angles, landmarks, phase);
     const cues = this.config.getCoachingCues(angles, landmarks, phase);
 
@@ -102,7 +105,6 @@ export class RepDetector {
     } else if (phases.length >= 2 && phase !== "") {
       const startPhase = phases[0];
       const midPhases = phases.slice(1);
-      const deepPhase = this.getDeepPhase();
 
       if (!this.inRep && midPhases.includes(phase)) {
         this.inRep = true;
@@ -111,7 +113,8 @@ export class RepDetector {
         this.scoreAccumulator = [score];
       }
 
-      if (this.inRep && phase === deepPhase) {
+      // Use raw phase for "hit bottom" — stable phase can lag 2+ frames and miss short pauses at depth.
+      if (this.inRep && rawPhase === deepPhase) {
         this.reachedDeepPhase = true;
       }
 
