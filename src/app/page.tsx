@@ -307,6 +307,9 @@ export default function LandingPage() {
           </div>
           <span className="text-zinc-700 hidden md:block">·</span>
           <span className="text-xs text-zinc-600">AI Form Coach — Built for Bitcamp 2026</span>
+          <span className="text-[10px] text-zinc-700 font-mono tabular-nums" title="Git commit this build was made from (Vercel)">
+            · build {process.env.NEXT_PUBLIC_DEPLOY_SHA}
+          </span>
         </div>
       </footer>
     </div>

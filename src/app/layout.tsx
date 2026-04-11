@@ -24,6 +24,9 @@ export const viewport: Viewport = {
   themeColor: "#030305",
 };
 
+/** Fresh HTML each request so production isn’t stuck on an old static shell after deploys */
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: "LiftIQ — AI Form Coach",
   description:
