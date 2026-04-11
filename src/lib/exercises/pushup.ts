@@ -13,6 +13,15 @@ export const pushupConfig: ExerciseConfig = {
   phases: ["top", "descending", "bottom"],
   caloriesPerRep: 0.5,
 
+  repCycle: {
+    primaryAngles: ["leftElbow", "rightElbow"],
+    startThreshold: 150,
+    depthThreshold: 100,
+    minROM: 40,
+    minDepthFrames: 2,
+    cooldownMs: 600,
+  },
+
   detectPhase(angles: Record<string, number>): string {
     const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
     if (avgElbow > 155) return "top";

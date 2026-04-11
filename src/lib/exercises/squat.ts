@@ -13,6 +13,15 @@ export const squatConfig: ExerciseConfig = {
   phases: ["standing", "descending", "bottom", "ascending"],
   caloriesPerRep: 0.4,
 
+  repCycle: {
+    primaryAngles: ["leftKnee", "rightKnee"],
+    startThreshold: 155,
+    depthThreshold: 115,
+    minROM: 35,
+    minDepthFrames: 2,
+    cooldownMs: 600,
+  },
+
   detectPhase(angles: Record<string, number>): string {
     const avgKnee = (angles.leftKnee + angles.rightKnee) / 2;
     if (avgKnee > 160) return "standing";

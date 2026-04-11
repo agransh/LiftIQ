@@ -12,6 +12,16 @@ export const burpeeConfig: ExerciseConfig = {
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_HIP, L.RIGHT_HIP, L.LEFT_KNEE, L.RIGHT_KNEE, L.LEFT_ELBOW, L.RIGHT_ELBOW],
   phases: ["standing", "squat", "plank", "jumping"],
   caloriesPerRep: 1.0,
+
+  repCycle: {
+    primaryAngles: ["leftKnee", "rightKnee"],
+    startThreshold: 155,
+    depthThreshold: 120,
+    minROM: 30,
+    minDepthFrames: 2,
+    cooldownMs: 1500,
+  },
+
   detectPhase(angles: Record<string, number>, landmarks: Landmark[]): string {
     const avgKnee = (angles.leftKnee + angles.rightKnee) / 2;
     const bodyAngle = calculateAngle(landmarks[L.LEFT_SHOULDER], landmarks[L.LEFT_HIP], landmarks[L.LEFT_ANKLE]);

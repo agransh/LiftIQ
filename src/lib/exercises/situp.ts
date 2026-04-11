@@ -12,6 +12,16 @@ export const situpConfig: ExerciseConfig = {
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_HIP, L.RIGHT_HIP, L.LEFT_KNEE, L.RIGHT_KNEE],
   phases: ["down", "rising", "up"],
   caloriesPerRep: 0.3,
+
+  repCycle: {
+    primaryAngles: ["leftHip", "rightHip"],
+    startThreshold: 145,
+    depthThreshold: 95,
+    minROM: 40,
+    minDepthFrames: 2,
+    cooldownMs: 600,
+  },
+
   detectPhase(angles: Record<string, number>): string {
     const avgHip = (angles.leftHip + angles.rightHip) / 2;
     if (avgHip > 150) return "down";

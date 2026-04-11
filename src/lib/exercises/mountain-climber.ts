@@ -12,6 +12,17 @@ export const mountainClimberConfig: ExerciseConfig = {
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_HIP, L.RIGHT_HIP, L.LEFT_KNEE, L.RIGHT_KNEE],
   phases: ["neutral", "drive"],
   caloriesPerRep: 0.3,
+
+  repCycle: {
+    primaryAngles: ["leftHip", "rightHip"],
+    startThreshold: 130,
+    depthThreshold: 105,
+    minROM: 25,
+    minDepthFrames: 1,
+    cooldownMs: 300,
+    combineMethod: "min",
+  },
+
   detectPhase(angles: Record<string, number>): string {
     if (angles.leftHip < 100 || angles.rightHip < 100) return "drive";
     return "neutral";

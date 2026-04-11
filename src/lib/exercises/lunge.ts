@@ -13,6 +13,16 @@ export const lungeConfig: ExerciseConfig = {
   phases: ["standing", "stepping", "bottom"],
   caloriesPerRep: 0.4,
 
+  repCycle: {
+    primaryAngles: ["leftKnee", "rightKnee"],
+    startThreshold: 150,
+    depthThreshold: 115,
+    minROM: 30,
+    minDepthFrames: 2,
+    cooldownMs: 700,
+    combineMethod: "min",
+  },
+
   detectPhase(angles: Record<string, number>): string {
     const minKnee = Math.min(angles.leftKnee, angles.rightKnee);
     const maxKnee = Math.max(angles.leftKnee, angles.rightKnee);

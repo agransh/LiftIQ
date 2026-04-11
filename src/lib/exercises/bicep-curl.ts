@@ -12,6 +12,16 @@ export const bicepCurlConfig: ExerciseConfig = {
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_ELBOW, L.RIGHT_ELBOW, L.LEFT_WRIST, L.RIGHT_WRIST],
   phases: ["extended", "curling", "contracted"],
   caloriesPerRep: 0.2,
+
+  repCycle: {
+    primaryAngles: ["leftElbow", "rightElbow"],
+    startThreshold: 140,
+    depthThreshold: 70,
+    minROM: 50,
+    minDepthFrames: 2,
+    cooldownMs: 500,
+  },
+
   detectPhase(angles: Record<string, number>): string {
     const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
     if (avgElbow > 150) return "extended";

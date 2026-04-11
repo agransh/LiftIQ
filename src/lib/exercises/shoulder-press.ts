@@ -12,6 +12,16 @@ export const shoulderPressConfig: ExerciseConfig = {
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_ELBOW, L.RIGHT_ELBOW, L.LEFT_WRIST, L.RIGHT_WRIST],
   phases: ["bottom", "pressing", "top"],
   caloriesPerRep: 0.4,
+
+  repCycle: {
+    primaryAngles: ["leftElbow", "rightElbow"],
+    startThreshold: 155,
+    depthThreshold: 105,
+    minROM: 40,
+    minDepthFrames: 2,
+    cooldownMs: 600,
+  },
+
   detectPhase(angles: Record<string, number>): string {
     const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
     if (avgElbow > 160) return "top";

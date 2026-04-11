@@ -12,6 +12,16 @@ export const jumpingJackConfig: ExerciseConfig = {
   targetJoints: [L.LEFT_SHOULDER, L.RIGHT_SHOULDER, L.LEFT_WRIST, L.RIGHT_WRIST, L.LEFT_ANKLE, L.RIGHT_ANKLE],
   phases: ["closed", "open"],
   caloriesPerRep: 0.2,
+
+  repCycle: {
+    primaryAngles: ["leftShoulder", "rightShoulder"],
+    startThreshold: 60,
+    depthThreshold: 140,
+    minROM: 50,
+    minDepthFrames: 1,
+    cooldownMs: 300,
+  },
+
   detectPhase(angles: Record<string, number>): string {
     const avgShoulder = (angles.leftShoulder + angles.rightShoulder) / 2;
     return avgShoulder > 140 ? "open" : "closed";
