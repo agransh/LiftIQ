@@ -10,6 +10,7 @@ import { Landmark, JointFeedback } from "@/types";
 import { getVoiceManager, classifyCuePriority } from "@/lib/ai/voice";
 import { Loader2, Camera, CameraOff, SwitchCamera, CheckCircle2, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { playCountdownTick, playSuccessChime, playStartGong, speakCue, speakCountdown } from "@/lib/audio-cues";
 
 const FORM_CHECK_REQUIRED_FRAMES = 15;
 
@@ -52,14 +53,19 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   const repDetectorRef = useRef<RepDetector | null>(null);
   const exerciseRef = useRef(selectedExercise);
   const formCheckFramesRef = useRef(0);
+  const lastHintRef = useRef("");
   const { setVoiceInfo } = useWorkoutStore();
 
-  // ── Countdown timer ──
   useEffect(() => {
     if (!isCountingDown || countdownSeconds <= 0) return;
+
+    playCountdownTick(countdownSeconds);
+    speakCountdown(countdownSeconds);
+
     const timer = setTimeout(() => {
       const next = countdownSeconds - 1;
       if (next <= 0) {
+        playStartGong();
         finishCountdown();
       } else {
         setCountdownSeconds(next);
@@ -99,6 +105,8 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
       setFormCheckProgress(0);
       setFormDetectedBanner(false);
       setFormCheckHint("");
+      lastHintRef.current = "";
+      speakCue("Now checking your form. Get into position.", true);
     }
   }, [isFormChecking]);
 
@@ -223,6 +231,10 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
           formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 3);
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
           setFormCheckHint(hint);
+          if (hint !== lastHintRef.current) {
+            lastHintRef.current = hint;
+            speakCue(hint);
+          }
           return;
         }
 
@@ -233,12 +245,19 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
 
         if (detectedPhase === startPhase && jointRatio >= 0.7) {
           formCheckFramesRef.current++;
-          setFormCheckHint("Hold your position...");
+          const holdHint = "Hold your position...";
+          setFormCheckHint(holdHint);
+          if (lastHintRef.current !== holdHint) {
+            lastHintRef.current = holdHint;
+            speakCue("Good. Hold that position.");
+          }
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
 
           if (formCheckFramesRef.current >= FORM_CHECK_REQUIRED_FRAMES) {
             setFormDetectedBanner(true);
             setFormCheckHint("");
+            playSuccessChime();
+            speakCue("Form detected. Starting rep count now.", true);
             setTimeout(() => {
               passFormCheck();
               setFormDetectedBanner(false);
@@ -247,7 +266,12 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         } else {
           formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 2);
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
-          setFormCheckHint("Get into the starting position");
+          const posHint = "Get into the starting position";
+          setFormCheckHint(posHint);
+          if (lastHintRef.current !== posHint) {
+            lastHintRef.current = posHint;
+            speakCue(posHint);
+          }
         }
         return;
       }
