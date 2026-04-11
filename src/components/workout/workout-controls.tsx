@@ -66,12 +66,17 @@ export function WorkoutControls() {
       recordingId,
     };
 
-    saveSession(session);
-    await updateStreak();
+    try {
+      saveSession(session);
+      await updateStreak();
+    } catch (err) {
+      // Supabase or local save can fail offline / misconfigured — still end the workout
+      console.warn("Workout save/sync failed:", err);
+    }
 
     setLastSession(session);
 
-    // Stop workout first so MediaRecorder fires onstop and sets the blob
+    // Stop workout so MediaRecorder fires onstop and sets the blob
     stopWorkout();
 
     // Save recording blob to IndexedDB after a short delay for the blob to be set
