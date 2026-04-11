@@ -7,10 +7,11 @@ import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { getSessions } from "@/lib/storage";
-import { getExplanationsForIssues } from "@/lib/ai/explainer";
+import { getExplanationsForIssues, generateFormExplanations } from "@/lib/ai/explainer";
+import { FormExplanation } from "@/lib/ai/explainer-prompts";
 import { getAllRecordingsMeta, getRecordingBlob, deleteRecording, type RecordingMeta } from "@/lib/storage/recordings-db";
 import { WorkoutSession } from "@/types";
-import { Video, Play, Trash2, X, Clock, Target, Repeat, Download, Star, AlertTriangle, Sparkles, MessageCircle, Flame } from "lucide-react";
+import { Video, Play, Trash2, X, Clock, Target, Repeat, Download, Star, AlertTriangle, Sparkles, MessageCircle, Flame, Lightbulb, Loader2, Wrench } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceDot } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -132,19 +133,36 @@ export default function RecordingsPage() {
 
 function SessionInsightsPanel({ session }: { session: WorkoutSession }) {
   const [showWhyExplanations, setShowWhyExplanations] = useState(false);
+  const [aiExplanations, setAiExplanations] = useState<FormExplanation[]>([]);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [hasLoadedAI, setHasLoadedAI] = useState(false);
 
   const { reps, exercise, totalScore } = session;
   const bestIdx = session.bestRepIndex ?? (reps.length > 0 ? reps.reduce((b, r, i) => (r.score > reps[b].score ? i : b), 0) : -1);
   const bestScore = bestIdx >= 0 ? reps[bestIdx].score : 0;
   const chartData = reps.map((r, i) => ({ rep: i + 1, score: r.score }));
   const allIssues = reps.flatMap(r => r.issues);
-  const explanations = getExplanationsForIssues(allIssues, exercise);
+  const syncExplanations = getExplanationsForIssues(allIssues, exercise);
+  const explanations = aiExplanations.length > 0 ? aiExplanations : syncExplanations;
 
   const issueCounts: Record<string, number> = {};
   for (const iss of allIssues) if (iss.message) issueCounts[iss.message] = (issueCounts[iss.message] || 0) + 1;
   const topMistakes = Object.entries(issueCounts).sort(([, a], [, b]) => b - a).slice(0, 4);
 
   const TT: React.CSSProperties = { background: "rgba(0,0,0,0.8)", border: "1px solid rgba(255,255,255,0.06)", borderRadius: "12px", fontSize: "11px" };
+
+  const handleExplainClick = async () => {
+    const next = !showWhyExplanations;
+    setShowWhyExplanations(next);
+    if (next && !hasLoadedAI) {
+      setLoadingAI(true);
+      try {
+        const results = await generateFormExplanations(allIssues, exercise);
+        setAiExplanations(results);
+      } catch { /* fallback already showing */ }
+      finally { setLoadingAI(false); setHasLoadedAI(true); }
+    }
+  };
 
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-5 space-y-4">
@@ -210,24 +228,40 @@ function SessionInsightsPanel({ session }: { session: WorkoutSession }) {
         </div>
       )}
 
-      {/* AI explanations */}
+      {/* AI Explanations */}
       {explanations.length > 0 && (
         <div>
           <button
-            onClick={() => setShowWhyExplanations(!showWhyExplanations)}
-            className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors"
+            onClick={handleExplainClick}
+            className="flex items-center gap-1.5 text-xs font-bold text-cyan-400 hover:text-cyan-300 transition-colors mb-2"
           >
             <MessageCircle className="h-3.5 w-3.5" />
-            {showWhyExplanations ? "Hide AI Explanations" : "Why did I get these mistakes?"}
+            {showWhyExplanations ? "Hide AI Explanations" : "Explain My Form"}
+            {loadingAI && <Loader2 className="h-3 w-3 animate-spin text-cyan-500" />}
           </button>
           <AnimatePresence>
             {showWhyExplanations && (
-              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-2 mt-2 overflow-hidden">
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="space-y-2.5 overflow-hidden">
                 {explanations.map((exp, i) => (
-                  <motion.div key={exp.issue} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.04 }}>
-                    <GlassCard className="p-3">
-                      <div className="text-[10px] font-bold text-amber-400 mb-1 flex items-center gap-1"><AlertTriangle className="h-3 w-3" />{exp.issue}</div>
-                      <p className="text-xs text-zinc-300 leading-relaxed">{exp.explanation}</p>
+                  <motion.div key={exp.title + i} initial={{ opacity: 0, x: -8 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}>
+                    <GlassCard className="p-0 overflow-hidden">
+                      <div className="h-[2px] bg-gradient-to-r from-cyan-500/60 via-blue-500/40 to-transparent" />
+                      <div className="p-3.5 space-y-2.5">
+                        <div className="flex items-center gap-2">
+                          <div className="h-6 w-6 rounded-md bg-amber-500/10 border border-amber-500/15 flex items-center justify-center shrink-0">
+                            <AlertTriangle className="h-3 w-3 text-amber-400" />
+                          </div>
+                          <h5 className="text-xs font-bold text-zinc-200">{exp.title}</h5>
+                        </div>
+                        <div className="flex items-start gap-2 pl-0.5">
+                          <Lightbulb className="h-3 w-3 mt-0.5 text-cyan-400 shrink-0" />
+                          <p className="text-[12px] text-zinc-400 leading-relaxed">{exp.explanation}</p>
+                        </div>
+                        <div className="flex items-start gap-2 rounded-lg bg-emerald-500/[0.06] border border-emerald-500/10 px-3 py-2">
+                          <Wrench className="h-3 w-3 mt-0.5 text-emerald-400 shrink-0" />
+                          <p className="text-[12px] text-emerald-300/90 leading-relaxed">{exp.fixTip}</p>
+                        </div>
+                      </div>
                     </GlassCard>
                   </motion.div>
                 ))}

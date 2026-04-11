@@ -1,13 +1,14 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useCallback } from "react";
 import { useWorkoutStore } from "@/lib/store";
 import { generateWorkoutFeedback } from "@/lib/ai/feedback";
-import { getExplanationsForIssues } from "@/lib/ai/explainer";
+import { generateFormExplanations, getExplanationsForIssues } from "@/lib/ai/explainer";
+import { FormExplanation } from "@/lib/ai/explainer-prompts";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/ui/glass-card";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Target, Repeat, Flame, TrendingUp, X, AlertTriangle, Sparkles, CheckCircle2, MessageCircle, Star } from "lucide-react";
+import { Trophy, Target, Repeat, Flame, X, AlertTriangle, Sparkles, CheckCircle2, MessageCircle, Star, Lightbulb, Loader2, Wrench } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceDot } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +17,24 @@ function scoreClass(s: number) { return s >= 85 ? "text-emerald-400" : s >= 65 ?
 export function PostWorkoutSummary() {
   const { lastSession, setLastSession } = useWorkoutStore();
   const [showExplanations, setShowExplanations] = useState(false);
+  const [aiExplanations, setAiExplanations] = useState<FormExplanation[]>([]);
+  const [loadingAI, setLoadingAI] = useState(false);
+  const [hasLoadedAI, setHasLoadedAI] = useState(false);
+
+  const loadAIExplanations = useCallback(async () => {
+    if (!lastSession || hasLoadedAI) return;
+    setLoadingAI(true);
+    try {
+      const allIssues = lastSession.reps.flatMap(r => r.issues);
+      const results = await generateFormExplanations(allIssues, lastSession.exercise);
+      setAiExplanations(results);
+    } catch {
+      // Fall through — sync fallback already shown
+    } finally {
+      setLoadingAI(false);
+      setHasLoadedAI(true);
+    }
+  }, [lastSession, hasLoadedAI]);
 
   if (!lastSession) return null;
 
@@ -29,7 +48,17 @@ export function PostWorkoutSummary() {
   const chartData = reps.map((r, i) => ({ rep: i + 1, score: r.score, isBest: i === bestRepIndex }));
   const feedback = generateWorkoutFeedback({ exercise, reps, avgScore: totalScore, duration: endTime ? Math.floor((endTime - startTime) / 1000) : 0 });
   const displayExercise = lastSession.exerciseName || exercise.charAt(0).toUpperCase() + exercise.slice(1).replace("-", " ");
-  const explanations = getExplanationsForIssues(allIssues, exercise);
+
+  const syncExplanations = getExplanationsForIssues(allIssues, exercise);
+  const explanations = aiExplanations.length > 0 ? aiExplanations : syncExplanations;
+
+  const handleExplainClick = () => {
+    const next = !showExplanations;
+    setShowExplanations(next);
+    if (next && !hasLoadedAI) {
+      void loadAIExplanations();
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
@@ -93,7 +122,7 @@ export function PostWorkoutSummary() {
               </motion.div>
             )}
 
-            {/* Score per rep chart with best rep highlighted */}
+            {/* Score per rep chart */}
             {chartData.length > 1 && (
               <div>
                 <h3 className="text-sm font-bold text-zinc-400 mb-2.5">Score per Rep</h3>
@@ -133,15 +162,16 @@ export function PostWorkoutSummary() {
               <GlassCard glow className="p-4"><p className="text-sm text-zinc-300 leading-relaxed whitespace-pre-line">{feedback}</p></GlassCard>
             </div>
 
-            {/* Explain My Mistakes */}
+            {/* AI Form Explanations */}
             {explanations.length > 0 && (
               <div>
                 <button
-                  onClick={() => setShowExplanations(!showExplanations)}
-                  className="flex items-center gap-2 text-sm font-bold text-cyan-400 hover:text-cyan-300 transition-colors mb-2.5"
+                  onClick={handleExplainClick}
+                  className="flex items-center gap-2 text-sm font-bold text-cyan-400 hover:text-cyan-300 transition-colors mb-3"
                 >
                   <MessageCircle className="h-4 w-4" />
-                  {showExplanations ? "Hide Explanations" : "Explain My Mistakes"}
+                  {showExplanations ? "Hide AI Explanations" : "Explain My Form Issues"}
+                  {loadingAI && <Loader2 className="h-3.5 w-3.5 animate-spin text-cyan-500" />}
                 </button>
                 <AnimatePresence>
                   {showExplanations && (
@@ -149,23 +179,10 @@ export function PostWorkoutSummary() {
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
-                      className="space-y-2 overflow-hidden"
+                      className="space-y-3 overflow-hidden"
                     >
                       {explanations.map((exp, i) => (
-                        <motion.div
-                          key={exp.issue}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: i * 0.05 }}
-                        >
-                          <GlassCard className="p-4">
-                            <div className="text-xs font-bold text-amber-400 mb-1.5 flex items-center gap-1.5">
-                              <AlertTriangle className="h-3 w-3" />
-                              {exp.issue}
-                            </div>
-                            <p className="text-sm text-zinc-300 leading-relaxed">{exp.explanation}</p>
-                          </GlassCard>
-                        </motion.div>
+                        <AIExplanationCard key={exp.title + i} explanation={exp} index={i} />
                       ))}
                     </motion.div>
                   )}
@@ -180,5 +197,42 @@ export function PostWorkoutSummary() {
         </div>
       </motion.div>
     </div>
+  );
+}
+
+function AIExplanationCard({ explanation, index }: { explanation: FormExplanation; index: number }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: -12 }}
+      animate={{ opacity: 1, x: 0 }}
+      transition={{ delay: index * 0.06 }}
+    >
+      <GlassCard className="p-0 overflow-hidden">
+        {/* Accent top bar */}
+        <div className="h-[2px] bg-gradient-to-r from-cyan-500/60 via-blue-500/40 to-transparent" />
+
+        <div className="p-4 space-y-3">
+          {/* Title */}
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-7 rounded-lg bg-amber-500/10 border border-amber-500/15 flex items-center justify-center shrink-0">
+              <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
+            </div>
+            <h4 className="text-sm font-bold text-zinc-200">{explanation.title}</h4>
+          </div>
+
+          {/* Explanation */}
+          <div className="flex items-start gap-2.5 pl-1">
+            <Lightbulb className="h-3.5 w-3.5 mt-0.5 text-cyan-400 shrink-0" />
+            <p className="text-[13px] text-zinc-400 leading-relaxed">{explanation.explanation}</p>
+          </div>
+
+          {/* Fix tip */}
+          <div className="flex items-start gap-2.5 rounded-xl bg-emerald-500/[0.06] border border-emerald-500/10 px-3.5 py-2.5">
+            <Wrench className="h-3.5 w-3.5 mt-0.5 text-emerald-400 shrink-0" />
+            <p className="text-[13px] text-emerald-300/90 leading-relaxed">{explanation.fixTip}</p>
+          </div>
+        </div>
+      </GlassCard>
+    </motion.div>
   );
 }
