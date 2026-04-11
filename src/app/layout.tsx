@@ -20,13 +20,13 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#09090b",
+  themeColor: "#030305",
 };
 
 export const metadata: Metadata = {
   title: "LiftIQ — AI Form Coach",
   description:
-    "Your camera just became your coach. Real-time AI-powered workout form analysis with precision movement scoring by LiftIQ.",
+    "Real-time AI-powered workout form analysis. Your camera is your coach.",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
@@ -44,7 +44,13 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} dark antialiased`}
     >
-      <body className="min-h-[100dvh] bg-zinc-950 text-zinc-50 overscroll-none">
+      <body className="noise min-h-[100dvh] bg-[#030305] text-zinc-200 overscroll-none selection:bg-cyan-500/20 selection:text-cyan-100">
+        {/* Ambient radial glow */}
+        <div className="pointer-events-none fixed inset-0 -z-10">
+          <div className="absolute top-[-30%] left-[15%] h-[70vh] w-[70vh] rounded-full bg-cyan-500/[0.04] blur-[120px]" />
+          <div className="absolute bottom-[-20%] right-[10%] h-[50vh] w-[50vh] rounded-full bg-blue-500/[0.03] blur-[100px]" />
+          <div className="absolute top-[40%] right-[30%] h-[30vh] w-[30vh] rounded-full bg-violet-500/[0.02] blur-[80px]" />
+        </div>
         {children}
       </body>
     </html>

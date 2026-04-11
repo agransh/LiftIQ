@@ -113,7 +113,7 @@ export function MobileWorkoutHUD() {
 
       {/* Timer — centered below */}
       <div className="flex justify-center px-3 pb-1 pt-1">
-        <div className="rounded-full px-4 py-2 min-w-[120px] text-center bg-zinc-900/80 backdrop-blur-md border border-zinc-700 shadow-md">
+        <div className="glass-card rounded-full px-4 py-2 min-w-[120px] text-center shadow-md">
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
             Timer
           </div>

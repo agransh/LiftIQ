@@ -112,7 +112,7 @@ export function WorkoutControls() {
   };
 
   return (
-    <div className="glass-card w-full rounded-xl border border-white/[0.06] p-3 shadow-lg shadow-black/30">
+    <div className="glass-card w-full rounded-2xl p-3">
       {!isWorkoutActive ? (
         <div className="flex w-full flex-col gap-2.5 sm:flex-row sm:items-stretch">
           <Button
@@ -127,7 +127,7 @@ export function WorkoutControls() {
             onClick={handleReset}
             variant="outline"
             size="lg"
-            className="min-h-[48px] rounded-xl border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-600 transition-all sm:shrink-0 sm:px-5"
+            className="min-h-[48px] rounded-xl border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition-all sm:shrink-0 sm:px-5"
           >
             <RotateCcw className="h-4 w-4" />
           </Button>
@@ -136,7 +136,7 @@ export function WorkoutControls() {
         <div className="flex w-full items-stretch gap-2">
           {isRecording && (
             <div
-              className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl bg-zinc-900/80 backdrop-blur-md border border-red-500/25 px-2.5 min-h-[48px] min-w-[3.25rem] shadow-inner"
+              className="flex shrink-0 items-center justify-center gap-1.5 rounded-xl glass-card border-red-500/20 px-2.5 min-h-[48px] min-w-[3.25rem]"
               aria-hidden
             >
               <span className="relative flex h-2 w-2">
@@ -154,7 +154,7 @@ export function WorkoutControls() {
               onClick={resumeWorkout}
               variant="outline"
               size="lg"
-              className="min-h-[48px] flex-1 rounded-xl border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-600 transition-all"
+              className="min-h-[48px] flex-1 rounded-xl border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition-all"
             >
               <Play className="h-4 w-4" />
               Resume
@@ -164,7 +164,7 @@ export function WorkoutControls() {
               onClick={pauseWorkout}
               variant="outline"
               size="lg"
-              className="min-h-[48px] flex-1 rounded-xl border-zinc-700 bg-zinc-800/50 hover:bg-zinc-800 hover:border-zinc-600 transition-all"
+              className="min-h-[48px] flex-1 rounded-xl border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition-all"
             >
               <Pause className="h-4 w-4" />
               Pause
