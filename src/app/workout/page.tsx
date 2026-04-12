@@ -20,6 +20,7 @@ import {
   type RoutineProgressState,
 } from "@/components/workout/routine-progress-bar";
 import { useWorkoutStore } from "@/lib/store";
+import { getExercise } from "@/lib/exercises";
 import { hasCompletedOnboarding, fetchHasCompletedOnboarding } from "@/lib/storage";
 import { UserExercise, WorkoutRoutine, RoutineExercise } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -80,6 +81,18 @@ export default function WorkoutPage() {
       });
     }
   }, [router]);
+
+  /** e.g. /workout?exercise=pushup — pre-select exercise for rep testing */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = new URLSearchParams(window.location.search).get("exercise");
+    if (!raw) return;
+    const id = raw.trim().toLowerCase().replace(/\s+/g, "-");
+    if (getExercise(id)) {
+      setSelectedExercise(id);
+      setSelectedUserExercise(null);
+    }
+  }, [setSelectedExercise]);
 
   const exerciseName =
     selectedUserExercise?.name ||

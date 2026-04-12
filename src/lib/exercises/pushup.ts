@@ -19,13 +19,21 @@ export const pushupConfig: ExerciseConfig = {
     depthThreshold: 100,
     minROM: 40,
     minDepthFrames: 2,
-    cooldownMs: 600,
+    cooldownMs: 280,
   },
 
   detectPhase(angles: Record<string, number>): string {
-    const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
-    if (avgElbow > 155) return "top";
-    if (avgElbow < 90) return "bottom";
+    const left = angles.leftElbow;
+    const right = angles.rightElbow;
+    const avgElbow = (left + right) / 2;
+    const minElbow = Math.min(left, right);
+
+    // Top (lockout): relaxed — many athletes stay ~145–165°; strict 155° missed reps.
+    if (avgElbow >= 146) return "top";
+
+    // Bottom (chest low): use deepest elbow + avg — strict <90° rarely held 2+ stable frames on webcam.
+    if (minElbow < 118 || avgElbow < 122) return "bottom";
+
     return "descending";
   },
 
@@ -35,11 +43,11 @@ export const pushupConfig: ExerciseConfig = {
 
     const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
 
-    // Depth check
-    if (phase === "bottom" && avgElbow > 110) {
-      const penalty = Math.min(25, (avgElbow - 90) * 0.8);
+    // Depth check (aligned with detectPhase bottom zone)
+    if (phase === "bottom" && avgElbow > 125) {
+      const penalty = Math.min(25, (avgElbow - 118) * 0.8);
       score -= penalty;
-      issues.push({ joint: "elbows", status: avgElbow > 130 ? "poor" : "moderate", message: "Lower your chest more" });
+      issues.push({ joint: "elbows", status: avgElbow > 135 ? "poor" : "moderate", message: "Lower your chest more" });
     }
 
     // Body alignment — hip sag or pike
@@ -79,7 +87,7 @@ export const pushupConfig: ExerciseConfig = {
     const cues: string[] = [];
     const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
 
-    if (phase === "bottom" && avgElbow > 110) {
+    if (phase === "bottom" && avgElbow > 125) {
       cues.push("Lower your chest more");
     }
 
@@ -88,7 +96,7 @@ export const pushupConfig: ExerciseConfig = {
       cues.push("Keep body straight");
     }
 
-    if (phase === "top" && avgElbow > 165) {
+    if (phase === "top" && avgElbow > 150) {
       cues.push("Good lockout!");
     }
 

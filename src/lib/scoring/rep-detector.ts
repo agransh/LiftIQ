@@ -1,8 +1,11 @@
 import { ExerciseConfig, Landmark, RepResult, JointFeedback, RepCycleConfig } from "@/types";
 import { getCommonAngles } from "@/lib/pose/angle-utils";
 
-const ANGLE_SMOOTHING_WINDOW = 3;
+const ANGLE_SMOOTHING_WINDOW = 5;
 const HYSTERESIS_BUFFER = 8;
+/** Phase-based rep path (exercises without repCycle): stability frames + cooldown */
+const PHASE_STABILITY_FRAMES = 2;
+const PHASE_REP_COOLDOWN_MS = 280;
 
 type CycleState = "idle" | "descending" | "at_depth" | "returning";
 
@@ -199,7 +202,7 @@ export class RepDetector {
       this.phaseCounter = 1;
     }
     this.prevPhase = rawPhase;
-    if (this.phaseCounter >= 3) this.stablePhase = rawPhase;
+    if (this.phaseCounter >= PHASE_STABILITY_FRAMES) this.stablePhase = rawPhase;
     return this.stablePhase;
   }
 
@@ -227,7 +230,7 @@ export class RepDetector {
 
     if (this.inRep && phase === startPhase && this.reachedDeepPhase && this.scoreAccumulator.length >= 4) {
       const now = Date.now();
-      if (now - this.lastRepTime > 600) {
+      if (now - this.lastRepTime > PHASE_REP_COOLDOWN_MS) {
         this.repCount++;
         this.lastRepTime = now;
         this.inRep = false;
