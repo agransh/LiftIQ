@@ -101,7 +101,6 @@ export default function DashboardPage() {
   }, { score: 0, exercise: "", date: 0 });
 
   const hasData = sessions.length > 0;
-  const hasAny = hasData || foodLog.length > 0;
 
   return (
     <div className="min-h-[100dvh] has-bottom-nav md:pb-0">
@@ -113,22 +112,17 @@ export default function DashboardPage() {
           <p className="text-zinc-500 mt-2">Your training intelligence</p>
         </motion.div>
 
-        {!hasAny ? (
-          <GlassCard className="flex flex-col items-center justify-center py-24 text-center">
-            <BarChart3 className="h-16 w-16 text-zinc-700 mb-6" strokeWidth={1} />
-            <h2 className="text-xl font-bold text-zinc-400 mb-2">No data yet</h2>
-            <p className="text-sm text-zinc-600 max-w-sm">Complete a workout or log food to unlock your dashboard.</p>
-          </GlassCard>
-        ) : (
-          <div className="space-y-6">
+        <div className="space-y-6">
             {/* ── Stat tiles ── */}
+            {hasData && (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               <MetricTile icon={<Repeat className="h-4 w-4" />} label="Total Reps" value={totalReps.toLocaleString()} />
-              <MetricTile icon={<Target className="h-4 w-4" />} label="Avg Score" value={hasData ? `${avgScore}` : "—"} accent={avgScore >= 85 ? "text-emerald-400" : avgScore >= 65 ? "text-amber-400" : hasData ? "text-rose-400" : "text-zinc-600"} />
+              <MetricTile icon={<Target className="h-4 w-4" />} label="Avg Score" value={`${avgScore}`} accent={avgScore >= 85 ? "text-emerald-400" : avgScore >= 65 ? "text-amber-400" : "text-rose-400"} />
               <MetricTile icon={<Zap className="h-4 w-4" />} label="Streak" value={`${streak.currentStreak}d`} accent="text-cyan-400" />
-              <MetricTile icon={<Trophy className="h-4 w-4" />} label="Best Score" value={hasData ? `${bestScore}` : "—"} accent={hasData ? "text-emerald-400" : "text-zinc-600"} />
-              <MetricTile icon={<Star className="h-4 w-4" />} label="Perfect Reps" value={hasData ? `${perfectReps}` : "—"} accent="text-amber-400" />
+              <MetricTile icon={<Trophy className="h-4 w-4" />} label="Best Score" value={`${bestScore}`} accent="text-emerald-400" />
+              <MetricTile icon={<Star className="h-4 w-4" />} label="Perfect Reps" value={`${perfectReps}`} accent="text-amber-400" />
             </div>
+            )}
 
             {/* ── Calorie + Streak row ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -323,8 +317,7 @@ export default function DashboardPage() {
                 </div>
               </GlassCard>
             )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
