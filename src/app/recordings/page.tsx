@@ -26,7 +26,12 @@ export default function RecordingsPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const loadRecordings = async () => { setRecordings(await getAllRecordingsMeta()); };
-  useEffect(() => { queueMicrotask(() => { void loadRecordings(); }); }, []);
+  useEffect(() => {
+    queueMicrotask(() => { void loadRecordings(); });
+    const onFocus = () => { void loadRecordings(); };
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
   useEffect(() => { if (!activeVideo) return; const p = document.body.style.overflow; document.body.style.overflow = "hidden"; return () => { document.body.style.overflow = p; }; }, [activeVideo]);
   useEffect(() => { const f = (e: KeyboardEvent) => { if (e.key === "Escape") setActiveVideo(v => { if (v) URL.revokeObjectURL(v.url); return null; }); }; window.addEventListener("keydown", f); return () => window.removeEventListener("keydown", f); }, []);
 

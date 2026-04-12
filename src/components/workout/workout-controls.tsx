@@ -128,7 +128,7 @@ export function WorkoutControls() {
 
     if (wasRecording && recordingId) {
       const duration = Math.floor((now - (sessionStartTime || now)) / 1000);
-      setTimeout(async () => {
+      const trySaveRecording = async (attempt = 0): Promise<void> => {
         const blob = useWorkoutStore.getState().recordingBlob;
         if (blob) {
           await saveRecording(
@@ -146,8 +146,12 @@ export function WorkoutControls() {
             blob
           );
           setRecordingBlob(null);
+        } else if (attempt < 20) {
+          await new Promise((r) => setTimeout(r, 300));
+          return trySaveRecording(attempt + 1);
         }
-      }, 500);
+      };
+      setTimeout(() => void trySaveRecording(), 300);
     }
   };
 

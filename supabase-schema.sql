@@ -212,6 +212,11 @@ create policy "Users can insert own recordings"
   on public.recordings for insert
   with check (auth.uid() = user_id);
 
+create policy "Users can update own recordings"
+  on public.recordings for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
 create policy "Users can delete own recordings"
   on public.recordings for delete
   using (auth.uid() = user_id);
