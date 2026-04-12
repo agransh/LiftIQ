@@ -170,3 +170,13 @@ export async function deleteRecording(id: string, storagePath?: string | null): 
     // Supabase delete can fail if table doesn't exist yet
   }
 }
+
+export async function clearAllRecordings(): Promise<void> {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    tx.objectStore(STORE_NAME).clear();
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}

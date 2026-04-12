@@ -1,5 +1,6 @@
 import { WorkoutSession, DailyLog, StreakData, UserSettings, UserProfile, FoodEntry, UserExercise, WorkoutRoutine } from "@/types";
 import * as db from "@/lib/supabase-db";
+import { clearAllRecordings } from "@/lib/storage/recordings-db";
 
 const STORAGE_KEYS = {
   SESSIONS: "liftiq-sessions",
@@ -39,6 +40,7 @@ export function clearAllStorage(): void {
     localStorage.removeItem(key);
   }
   localStorage.removeItem(OWNER_KEY);
+  clearAllRecordings().catch(() => {});
 }
 
 export function ensureStorageOwner(userId: string): void {
