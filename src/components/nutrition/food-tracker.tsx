@@ -7,8 +7,7 @@ import {
   deleteFoodEntry,
   getTodayFoodCalories,
   getTodayFoodEntries,
-  fetchTodayFoodCalories,
-  fetchTodayFoodEntries,
+  fetchFoodLog,
 } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -79,9 +78,13 @@ export function FoodTracker({ compact = false, onFoodChange }: FoodTrackerProps)
     refreshLocal();
     onFoodChange?.();
     (async () => {
-      const [cal, entries] = await Promise.all([fetchTodayFoodCalories(), fetchTodayFoodEntries()]);
+      const log = await fetchFoodLog();
+      const today = new Date().toISOString().split("T")[0];
+      const todayLog = log.filter((e) => e.date === today);
+      const cal = todayLog.reduce((sum, e) => sum + e.calories, 0);
       setTodayCalories(cal);
-      setTodayEntries(entries);
+      setTodayEntries(todayLog);
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("food-changed"));
     })();
   };
 
