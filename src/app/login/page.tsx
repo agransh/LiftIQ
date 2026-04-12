@@ -4,7 +4,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { GlassCard } from "@/components/ui/glass-card";
-import { Zap, ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, Mail, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export default function LoginPage() {
@@ -84,10 +85,8 @@ export default function LoginPage() {
         className="w-full max-w-sm relative"
       >
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2.5 mb-4">
-            <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Zap className="h-6 w-6 text-white" strokeWidth={2.5} />
-            </div>
+          <div className="flex items-center justify-center mb-4">
+            <Image src="/logo.png" alt="LiftIQ" width={72} height={72} className="rounded-2xl" />
           </div>
           <h1 className="text-3xl font-black tracking-tight">
             Lift<span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">IQ</span>

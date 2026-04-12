@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, Dumbbell, LogOut, Settings, Video, Zap } from "lucide-react";
+import { Activity, BarChart3, Dumbbell, LogOut, Settings, Video } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -38,10 +39,8 @@ export function Navbar() {
       {/* Desktop: fixed bar — solid background so scroll does not show through */}
       <header className="fixed top-0 left-0 right-0 z-[100] hidden h-16 border-b border-border bg-background md:block">
         <nav className="mx-auto flex h-full max-w-7xl items-center justify-between px-6 lg:px-8">
-          <Link href="/" className="group flex shrink-0 items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 shadow-lg shadow-cyan-500/20 transition-shadow group-hover:shadow-cyan-500/40">
-              <Zap className="h-4 w-4 text-white" strokeWidth={2.5} />
-            </div>
+          <Link href="/" className="group flex shrink-0 items-center gap-2">
+            <Image src="/logo.png" alt="LiftIQ" width={36} height={36} className="rounded-lg" />
             <span className="text-lg font-extrabold tracking-tight">
               Lift
               <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">IQ</span>

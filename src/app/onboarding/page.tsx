@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { GlassCard } from "@/components/ui/glass-card";
-import { ArrowRight, ChevronLeft, Flame, Zap, Shield } from "lucide-react";
+import Image from "next/image";
+import { ArrowRight, ChevronLeft, Flame, Shield } from "lucide-react";
 import { saveUserProfile } from "@/lib/storage";
 import { useWorkoutStore } from "@/lib/store";
 import { UserProfile, WeightGoal, Gender, ActivityLevel } from "@/types";
@@ -53,7 +54,7 @@ export default function OnboardingPage() {
 
       <div className="flex items-center justify-between gap-3 px-4 pt-4 md:px-6 md:pt-6 relative" style={{ paddingTop: "max(1rem, var(--safe-top))" }}>
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-cyan-400 to-blue-500 flex items-center justify-center shadow-lg shadow-cyan-500/20"><Zap className="h-4 w-4 text-white" strokeWidth={2.5} /></div>
+          <Image src="/logo.png" alt="LiftIQ" width={32} height={32} className="rounded-lg" />
           <span className="text-lg font-extrabold tracking-tight">Lift<span className="text-cyan-400">IQ</span></span>
         </div>
         <Badge variant="outline" className="text-zinc-500 text-xs border-white/[0.08]">Step {step + 1} of {steps.length}</Badge>

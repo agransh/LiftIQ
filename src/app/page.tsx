@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Eye, BarChart3, Flame, ArrowRight, ArrowUpRight,
@@ -288,9 +289,7 @@ export default function LandingPage() {
       <footer className="border-t border-white/[0.04] py-8">
         <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-center gap-4 text-center">
           <div className="flex items-center gap-2">
-            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-cyan-400 to-blue-500">
-              <Zap className="h-3 w-3 text-white" strokeWidth={2.5} />
-            </div>
+            <Image src="/logo.png" alt="LiftIQ" width={24} height={24} className="rounded-md" />
             <span className="font-bold text-sm">Lift<span className="text-cyan-400">IQ</span></span>
           </div>
           <span className="text-zinc-700 hidden md:block">·</span>
