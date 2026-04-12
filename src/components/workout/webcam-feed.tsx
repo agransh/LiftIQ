@@ -54,18 +54,23 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   const exerciseRef = useRef(selectedExercise);
   const formCheckFramesRef = useRef(0);
   const lastHintRef = useRef("");
+  const lastPlayedSecondRef = useRef(-1);
   const { setVoiceInfo } = useWorkoutStore();
 
   useEffect(() => {
     if (!isCountingDown || countdownSeconds <= 0) return;
 
-    playCountdownTick(countdownSeconds);
-    speakCountdown(countdownSeconds);
+    if (lastPlayedSecondRef.current !== countdownSeconds) {
+      lastPlayedSecondRef.current = countdownSeconds;
+      playCountdownTick(countdownSeconds);
+      speakCountdown(countdownSeconds);
+    }
 
     const timer = setTimeout(() => {
       const next = countdownSeconds - 1;
       if (next <= 0) {
         playStartGong();
+        lastPlayedSecondRef.current = -1;
         finishCountdown();
       } else {
         setCountdownSeconds(next);
@@ -197,31 +202,38 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         ).length;
         const jointRatio = requiredJoints.length > 0 ? jointVisible / requiredJoints.length : 0;
 
-        // 2) Measure body size in frame (shoulder-to-ankle vertical span)
-        const shoulderY = Math.min(
-          landmarks[11]?.y ?? 1, landmarks[12]?.y ?? 1
-        );
-        const ankleY = Math.max(
-          landmarks[27]?.y ?? 0, landmarks[28]?.y ?? 0
-        );
-        const bodySpan = ankleY - shoulderY;
-
         const shouldersOk = (landmarks[11]?.visibility ?? 0) >= MIN_VIS
           && (landmarks[12]?.visibility ?? 0) >= MIN_VIS;
         const anklesOk = (landmarks[27]?.visibility ?? 0) >= 0.4
           || (landmarks[28]?.visibility ?? 0) >= 0.4;
+        const hipsOk = (landmarks[23]?.visibility ?? 0) >= MIN_VIS
+          && (landmarks[24]?.visibility ?? 0) >= MIN_VIS;
 
-        // 3) Determine guidance hint
+        let bodySpan = -1;
+        if (shouldersOk && anklesOk) {
+          const shoulderY = Math.min(landmarks[11].y, landmarks[12].y);
+          const ankleY = Math.max(landmarks[27].y, landmarks[28].y);
+          bodySpan = ankleY - shoulderY;
+        }
+
+        const shoulderWidth = shouldersOk
+          ? Math.abs(landmarks[11].x - landmarks[12].x)
+          : 0;
+
         let hint = "";
         let bodyOk = false;
 
         if (coreVisible < 4 || jointRatio < 0.5) {
           hint = "Step fully into the camera view";
-        } else if (!shouldersOk || (!anklesOk && bodySpan < 0.15)) {
-          hint = "Make sure your full body is visible";
-        } else if (bodySpan > 0 && bodySpan < 0.2) {
+        } else if (!shouldersOk || !hipsOk) {
+          hint = "Make sure your upper body is visible";
+        } else if (!anklesOk) {
+          hint = shoulderWidth > 0.35
+            ? "You're too close. Move the camera farther away"
+            : "Make sure your full body is visible, including your feet";
+        } else if (bodySpan < 0.2) {
           hint = "Move closer to the camera";
-        } else if (bodySpan > 0.88) {
+        } else if (bodySpan > 0.88 || shoulderWidth > 0.4) {
           hint = "Move farther from the camera";
         } else {
           bodyOk = true;
