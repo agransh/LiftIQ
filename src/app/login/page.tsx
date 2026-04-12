@@ -86,7 +86,7 @@ export default function LoginPage() {
       >
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <Image src="/logo.png" alt="LiftIQ" width={72} height={72} className="rounded-2xl" />
+            <Image src="/logo.png" alt="LiftIQ" width={96} height={96} className="rounded-2xl" />
           </div>
           <h1 className="text-3xl font-black tracking-tight">
             Lift<span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">IQ</span>

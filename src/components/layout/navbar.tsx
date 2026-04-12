@@ -40,7 +40,7 @@ export function Navbar() {
       <header className="fixed top-0 left-0 right-0 z-[100] hidden h-16 border-b border-border bg-background md:block">
         <nav className="mx-auto flex h-full max-w-7xl items-center justify-between px-6 lg:px-8">
           <Link href="/" className="group flex shrink-0 items-center gap-2">
-            <Image src="/logo.png" alt="LiftIQ" width={36} height={36} className="rounded-lg" />
+            <Image src="/logo.png" alt="LiftIQ" width={44} height={44} className="rounded-lg" />
             <span className="text-lg font-extrabold tracking-tight">
               Lift
               <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">IQ</span>
