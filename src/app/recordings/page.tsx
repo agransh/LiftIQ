@@ -32,15 +32,15 @@ export default function RecordingsPage() {
 
   const handlePlay = async (m: RecordingMeta) => {
     if (activeVideo) URL.revokeObjectURL(activeVideo.url);
-    const b = await getRecordingBlob(m.id);
+    const b = await getRecordingBlob(m.id, m.storagePath);
     if (b) setActiveVideo({ meta: m, url: URL.createObjectURL(b) });
     const sessions = getSessions();
     const match = sessions.find(s => s.recordingId === m.id || s.id === m.sessionId);
     setLinkedSession(match || null);
   };
   const handleClose = () => { if (activeVideo) { URL.revokeObjectURL(activeVideo.url); setActiveVideo(null); } setLinkedSession(null); };
-  const handleDelete = async (id: string) => { await deleteRecording(id); if (activeVideo?.meta.id === id) handleClose(); loadRecordings(); };
-  const handleDownload = async (m: RecordingMeta) => { const b = await getRecordingBlob(m.id); if (!b) return; const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `LiftIQ-${m.exerciseName}-${new Date(m.createdAt).toISOString().slice(0, 10)}.webm`; a.click(); URL.revokeObjectURL(u); };
+  const handleDelete = async (id: string) => { const rec = recordings.find(r => r.id === id); await deleteRecording(id, rec?.storagePath); if (activeVideo?.meta.id === id) handleClose(); loadRecordings(); };
+  const handleDownload = async (m: RecordingMeta) => { const b = await getRecordingBlob(m.id, m.storagePath); if (!b) return; const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = `LiftIQ-${m.exerciseName}-${new Date(m.createdAt).toISOString().slice(0, 10)}.webm`; a.click(); URL.revokeObjectURL(u); };
 
   return (
     <div className="min-h-[100dvh] has-bottom-nav md:pb-0">

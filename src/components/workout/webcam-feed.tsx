@@ -11,14 +11,17 @@ import { getVoiceManager, classifyCuePriority } from "@/lib/ai/voice";
 import { Loader2, Camera, CameraOff, SwitchCamera, CheckCircle2, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playCountdownTick, playSuccessChime, playStartGong, speakCue, speakCountdown } from "@/lib/audio-cues";
+import { GhostCoachOverlay } from "@/components/exercise-guide/ghost-coach-overlay";
 
 const FORM_CHECK_REQUIRED_FRAMES = 15;
 
 interface WebcamFeedProps {
   mobile?: boolean;
+  ghostCoachEnabled?: boolean;
+  onDismissGhostCoach?: () => void;
 }
 
-export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
+export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCoach }: WebcamFeedProps) {
   const {
     selectedExercise,
     isWorkoutActive,
@@ -447,6 +450,11 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         className="absolute inset-0 w-full h-full"
         style={cameraFacing === "user" ? { transform: "scaleX(-1)" } : undefined}
       />
+
+      {/* Ghost coach overlay */}
+      {ghostCoachEnabled && selectedExercise && onDismissGhostCoach && (
+        <GhostCoachOverlay exerciseId={selectedExercise} onDismiss={onDismissGhostCoach} />
+      )}
 
       {/* Camera controls */}
       {status === "detecting" && (

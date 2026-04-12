@@ -32,8 +32,11 @@ import {
   LayoutList,
   Zap,
   Radio,
+  HelpCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getExerciseGuide } from "@/lib/exercises/exercise-visual-guides";
+import { ExerciseGuideModal } from "@/components/exercise-guide/exercise-guide-modal";
 
 export default function WorkoutPage() {
   const router = useRouter();
@@ -57,6 +60,8 @@ export default function WorkoutPage() {
   const [showExercises, setShowExercises] = useState(false);
   const [showExerciseManager, setShowExerciseManager] = useState(false);
   const [showRoutineBuilder, setShowRoutineBuilder] = useState(false);
+  const [showExerciseGuide, setShowExerciseGuide] = useState(false);
+  const [ghostCoachEnabled, setGhostCoachEnabled] = useState(false);
   const [selectedUserExercise, setSelectedUserExercise] = useState<UserExercise | null>(null);
   const [routineProgress, setRoutineProgress] = useState<RoutineProgressState | null>(null);
 
@@ -198,7 +203,7 @@ export default function WorkoutPage() {
       <div className="md:hidden flex flex-col h-[100dvh]">
         <div className="relative flex-1 min-h-0 flex flex-col">
           {hasSelectedExercise && isMobile ? (
-            <WebcamFeed mobile />
+            <WebcamFeed mobile ghostCoachEnabled={ghostCoachEnabled} onDismissGhostCoach={() => setGhostCoachEnabled(false)} />
           ) : (
             <ExerciseCameraPlaceholder mobile />
           )}
@@ -243,6 +248,17 @@ export default function WorkoutPage() {
                     <ChevronDown className="h-4 w-4 text-zinc-500" />
                   )}
                 </button>
+                {selectedExercise && getExerciseGuide(selectedExercise) && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowExerciseGuide(true)}
+                    className="min-h-[40px] border-white/[0.08] bg-white/[0.02]"
+                    title="How to do this exercise"
+                  >
+                    <HelpCircle className="h-3.5 w-3.5 text-cyan-400" />
+                  </Button>
+                )}
                 <Button
                   variant="outline"
                   size="sm"
@@ -324,6 +340,16 @@ export default function WorkoutPage() {
               </div>
             </div>
             <div className="flex gap-2">
+              {selectedExercise && getExerciseGuide(selectedExercise) && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowExerciseGuide(true)}
+                  className="border-white/[0.08] bg-white/[0.02] text-cyan-400 hover:bg-cyan-500/10 hover:border-cyan-500/20"
+                >
+                  <HelpCircle className="h-4 w-4" /> How To
+                </Button>
+              )}
               <Button
                 variant="outline"
                 size="sm"
@@ -365,7 +391,7 @@ export default function WorkoutPage() {
               >
                 {isWorkoutActive && <div className="accent-line" />}
                 <div className="bg-[#040408]">
-                  {hasSelectedExercise && !isMobile ? <WebcamFeed /> : <ExerciseCameraPlaceholder />}
+                  {hasSelectedExercise && !isMobile ? <WebcamFeed ghostCoachEnabled={ghostCoachEnabled} onDismissGhostCoach={() => setGhostCoachEnabled(false)} /> : <ExerciseCameraPlaceholder />}
                 </div>
               </div>
               <CoachingCues />
@@ -408,6 +434,13 @@ export default function WorkoutPage() {
       )}
       {showRoutineBuilder && (
         <RoutineBuilder onClose={() => setShowRoutineBuilder(false)} onStartRoutine={handleStartRoutine} />
+      )}
+      {showExerciseGuide && selectedExercise && getExerciseGuide(selectedExercise) && (
+        <ExerciseGuideModal
+          guide={getExerciseGuide(selectedExercise)!}
+          onClose={() => setShowExerciseGuide(false)}
+          onEnableGhostCoach={() => setGhostCoachEnabled(true)}
+        />
       )}
     </div>
   );

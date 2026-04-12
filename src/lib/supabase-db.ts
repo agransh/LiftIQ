@@ -397,3 +397,99 @@ export async function dbSaveRoutine(routine: WorkoutRoutine): Promise<void> {
 export async function dbDeleteRoutine(id: string): Promise<void> {
   await getSupabase().from("workout_routines").delete().eq("id", id);
 }
+
+// ── Recordings ───────────────────────────────────────────────
+
+export interface DbRecordingMeta {
+  id: string;
+  sessionId: string;
+  exercise: string;
+  exerciseName: string;
+  reps: number;
+  score: number;
+  duration: number;
+  size: number;
+  storagePath: string | null;
+  createdAt: number;
+}
+
+export async function dbUploadRecording(
+  meta: Omit<DbRecordingMeta, "storagePath" | "createdAt"> & { createdAt: number },
+  blob: Blob
+): Promise<void> {
+  const uid = await getUserId();
+  if (!uid) return;
+
+  const path = `${uid}/${meta.id}.webm`;
+
+  const { error: uploadError } = await getSupabase().storage
+    .from("recordings")
+    .upload(path, blob, {
+      contentType: "video/webm",
+      upsert: true,
+    });
+
+  if (uploadError) {
+    console.error("Recording upload failed:", uploadError.message);
+    return;
+  }
+
+  await getSupabase().from("recordings").upsert({
+    id: meta.id,
+    user_id: uid,
+    session_id: meta.sessionId,
+    exercise: meta.exercise,
+    exercise_name: meta.exerciseName,
+    reps: meta.reps,
+    score: meta.score,
+    duration: meta.duration,
+    size: meta.size,
+    storage_path: path,
+  });
+}
+
+export async function dbGetRecordings(): Promise<DbRecordingMeta[]> {
+  const uid = await getUserId();
+  if (!uid) return [];
+
+  const { data } = await getSupabase()
+    .from("recordings")
+    .select("*")
+    .eq("user_id", uid)
+    .order("created_at", { ascending: false });
+
+  if (!data) return [];
+
+  return data.map((d) => ({
+    id: d.id,
+    sessionId: d.session_id,
+    exercise: d.exercise,
+    exerciseName: d.exercise_name,
+    reps: d.reps,
+    score: d.score,
+    duration: d.duration,
+    size: d.size,
+    storagePath: d.storage_path,
+    createdAt: new Date(d.created_at).getTime(),
+  }));
+}
+
+export async function dbGetRecordingBlob(storagePath: string): Promise<Blob | null> {
+  const { data, error } = await getSupabase().storage
+    .from("recordings")
+    .download(storagePath);
+
+  if (error || !data) {
+    console.error("Recording download failed:", error?.message);
+    return null;
+  }
+
+  return data;
+}
+
+export async function dbDeleteRecording(id: string, storagePath: string | null): Promise<void> {
+  if (storagePath) {
+    await getSupabase().storage.from("recordings").remove([storagePath]);
+  }
+  await getSupabase().from("recordings").delete().eq("id", id);
+}

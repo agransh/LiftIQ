@@ -187,6 +187,62 @@ create policy "Users can delete own routines"
   on public.workout_routines for delete
   using (auth.uid() = user_id);
 
+-- 7. Recordings metadata table
+create table if not exists public.recordings (
+  id text primary key,
+  user_id uuid references auth.users on delete cascade not null,
+  session_id text,
+  exercise text not null,
+  exercise_name text not null,
+  reps integer not null default 0,
+  score integer not null default 0,
+  duration integer not null default 0,
+  size integer not null default 0,
+  storage_path text,
+  created_at timestamptz not null default now()
+);
+
+alter table public.recordings enable row level security;
+
+create policy "Users can view own recordings"
+  on public.recordings for select
+  using (auth.uid() = user_id);
+
+create policy "Users can insert own recordings"
+  on public.recordings for insert
+  with check (auth.uid() = user_id);
+
+create policy "Users can delete own recordings"
+  on public.recordings for delete
+  using (auth.uid() = user_id);
+
+-- 8. Supabase Storage bucket for workout recordings
+-- Run this AFTER the table creation:
+insert into storage.buckets (id, name, public)
+  values ('recordings', 'recordings', false)
+  on conflict (id) do nothing;
+
+create policy "Users can upload recording files"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'recordings'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can view recording files"
+  on storage.objects for select
+  using (
+    bucket_id = 'recordings'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+create policy "Users can delete recording files"
+  on storage.objects for delete
+  using (
+    bucket_id = 'recordings'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
 -- Create indexes for common queries
 create index if not exists idx_workout_sessions_user_id on public.workout_sessions(user_id);
 create index if not exists idx_workout_sessions_start_time on public.workout_sessions(start_time);
@@ -194,3 +250,5 @@ create index if not exists idx_food_log_user_id on public.food_log(user_id);
 create index if not exists idx_food_log_date on public.food_log(date);
 create index if not exists idx_user_exercises_user_id on public.user_exercises(user_id);
 create index if not exists idx_workout_routines_user_id on public.workout_routines(user_id);
+create index if not exists idx_recordings_user_id on public.recordings(user_id);
+create index if not exists idx_recordings_session_id on public.recordings(session_id);
