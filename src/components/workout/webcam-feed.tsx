@@ -441,14 +441,14 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
       <video
         ref={videoRef}
         className="absolute inset-0 w-full h-full object-cover"
-        style={cameraFacing === "user" ? { transform: "scaleX(-1)" } : undefined}
+        style={{ transform: cameraFacing === "user" ? "scaleX(-1)" : "none" }}
         playsInline
         muted
       />
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full"
-        style={cameraFacing === "user" ? { transform: "scaleX(-1)" } : undefined}
+        style={{ transform: cameraFacing === "user" ? "scaleX(-1)" : "none" }}
       />
 
       {/* Ghost coach overlay */}

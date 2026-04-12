@@ -289,7 +289,7 @@ export default function LandingPage() {
       <footer className="border-t border-white/[0.04] py-8">
         <div className="mx-auto max-w-7xl px-6 flex flex-col md:flex-row items-center justify-center gap-4 text-center">
           <div className="flex items-center gap-2">
-            <Image src="/logo.png" alt="LiftIQ" width={32} height={32} className="rounded-md" />
+            <Image src="/logo.png" alt="LiftIQ" width={40} height={40} className="rounded-lg" />
             <span className="font-bold text-sm">Lift<span className="text-cyan-400">IQ</span></span>
           </div>
           <span className="text-zinc-700 hidden md:block">·</span>

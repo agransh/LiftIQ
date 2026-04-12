@@ -54,7 +54,7 @@ export default function OnboardingPage() {
 
       <div className="flex items-center justify-between gap-3 px-4 pt-4 md:px-6 md:pt-6 relative" style={{ paddingTop: "max(1rem, var(--safe-top))" }}>
         <div className="flex items-center gap-2.5">
-          <Image src="/logo.png" alt="LiftIQ" width={44} height={44} className="rounded-lg" />
+          <Image src="/logo.png" alt="LiftIQ" width={56} height={56} className="rounded-xl" />
           <span className="text-lg font-extrabold tracking-tight">Lift<span className="text-cyan-400">IQ</span></span>
         </div>
         <Badge variant="outline" className="text-zinc-500 text-xs border-white/[0.08]">Step {step + 1} of {steps.length}</Badge>
