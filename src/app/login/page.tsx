@@ -54,7 +54,7 @@ export default function LoginPage() {
         setError(err.message);
         return;
       }
-      setMessage("Check your email for a confirmation link!");
+      setMessage("You are now registered! You can sign in now.");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Sign up failed");
     } finally {

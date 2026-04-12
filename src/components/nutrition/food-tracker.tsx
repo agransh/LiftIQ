@@ -62,9 +62,10 @@ const QUICK_FOODS = [
 
 interface FoodTrackerProps {
   compact?: boolean;
+  onFoodChange?: () => void;
 }
 
-export function FoodTracker({ compact = false }: FoodTrackerProps) {
+export function FoodTracker({ compact = false, onFoodChange }: FoodTrackerProps) {
   const [todayCalories, setTodayCalories] = useState(0);
   const [todayEntries, setTodayEntries] = useState<FoodEntry[]>([]);
   const [showAddForm, setShowAddForm] = useState(false);
@@ -76,6 +77,7 @@ export function FoodTracker({ compact = false }: FoodTrackerProps) {
 
   const refresh = () => {
     refreshLocal();
+    onFoodChange?.();
     (async () => {
       const [cal, entries] = await Promise.all([fetchTodayFoodCalories(), fetchTodayFoodEntries()]);
       setTodayCalories(cal);

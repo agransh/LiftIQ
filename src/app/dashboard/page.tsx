@@ -36,9 +36,10 @@ export default function DashboardPage() {
 
   const refresh = () => { setSessions(getSessions()); setDailyLogs(getDailyLogs()); setStreak(getStreakData()); setTodayFoodCalories(getTodayFoodCalories()); setFoodLog(getFoodLog()); setProfile(getUserProfile()); };
   useEffect(() => {
-    queueMicrotask(() => {
-      refresh();
-    });
+    queueMicrotask(() => { refresh(); });
+    const onFoodChanged = () => { setTodayFoodCalories(getTodayFoodCalories()); setFoodLog(getFoodLog()); };
+    window.addEventListener("food-changed", onFoodChanged);
+    return () => window.removeEventListener("food-changed", onFoodChanged);
   }, []);
 
   const totalReps = sessions.reduce((s, x) => s + x.reps.length, 0);
@@ -193,7 +194,7 @@ export default function DashboardPage() {
                 <UtensilsCrossed className="h-4 w-4 text-cyan-400" />
                 <h3 className="text-sm font-bold">Nutrition</h3>
               </div>
-              <div className="p-5"><FoodTracker /></div>
+              <div className="p-5"><FoodTracker onFoodChange={refresh} /></div>
             </GlassCard>
 
             {/* ── Charts ── */}

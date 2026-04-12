@@ -31,6 +31,25 @@ function setItem<T>(key: string, value: T): void {
   }
 }
 
+const OWNER_KEY = "liftiq-data-owner";
+
+export function clearAllStorage(): void {
+  if (typeof window === "undefined") return;
+  for (const key of Object.values(STORAGE_KEYS)) {
+    localStorage.removeItem(key);
+  }
+  localStorage.removeItem(OWNER_KEY);
+}
+
+export function ensureStorageOwner(userId: string): void {
+  if (typeof window === "undefined") return;
+  const current = localStorage.getItem(OWNER_KEY);
+  if (current && current !== userId) {
+    clearAllStorage();
+  }
+  localStorage.setItem(OWNER_KEY, userId);
+}
+
 // ── User Profile ──────────────────────────────────────────────
 
 export function getUserProfile(): UserProfile | null {
@@ -221,12 +240,14 @@ export function addFoodEntry(entry: FoodEntry): void {
   log.push(entry);
   setItem(STORAGE_KEYS.FOOD_LOG, log);
   db.dbAddFoodEntry(entry);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("food-changed"));
 }
 
 export function deleteFoodEntry(id: string): void {
   const log = getFoodLog().filter((e) => e.id !== id);
   setItem(STORAGE_KEYS.FOOD_LOG, log);
   db.dbDeleteFoodEntry(id);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("food-changed"));
 }
 
 export function getTodayFoodCalories(): number {

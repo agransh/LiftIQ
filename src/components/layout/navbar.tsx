@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { Activity, BarChart3, Dumbbell, LogOut, Settings, Video } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
+import { clearAllStorage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -27,6 +28,7 @@ export function Navbar() {
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
+    clearAllStorage();
     router.push("/login");
     router.refresh();
   };
