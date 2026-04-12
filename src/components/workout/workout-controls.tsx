@@ -19,8 +19,6 @@ export function WorkoutControls() {
     hasSelectedExercise,
     sessionStartTime,
     sessionWeight,
-    repResults,
-    recordingBlob,
     startCountdown,
     cancelCountdown,
     pauseWorkout,
@@ -44,26 +42,33 @@ export function WorkoutControls() {
   };
 
   const handleStop = async () => {
+    // Stop the workout FIRST so the frame loop stops counting reps immediately
+    const wasRecording = isRecording;
+    stopWorkout();
+
+    // Snapshot store state right after stopping to avoid closure staleness
+    const snap = useWorkoutStore.getState();
+    const finalReps = [...snap.repResults];
     const config = getExercise(selectedExercise);
     const now = Date.now();
+
     const totalScore =
-      repResults.length > 0
+      finalReps.length > 0
         ? Math.round(
-            repResults.reduce((s, r) => s + r.score, 0) / repResults.length
+            finalReps.reduce((s, r) => s + r.score, 0) / finalReps.length
           )
         : 0;
 
-    const caloriesBurned = repResults.length * (config?.caloriesPerRep || 0.3);
+    const caloriesBurned = finalReps.length * (config?.caloriesPerRep || 0.3);
 
-    const recordingId = isRecording ? `rec-${now}` : undefined;
+    const recordingId = wasRecording ? `rec-${now}` : undefined;
 
-    const bestIdx = repResults.length > 0
-      ? repResults.reduce((best, r, i) => (r.score > repResults[best].score ? i : best), 0)
+    const bestIdx = finalReps.length > 0
+      ? finalReps.reduce((best, r, i) => (r.score > finalReps[best].score ? i : best), 0)
       : -1;
 
-    const bestRep = bestIdx >= 0 ? repResults[bestIdx] : null;
+    const bestRep = bestIdx >= 0 ? finalReps[bestIdx] : null;
 
-    // Compute "why it was the best" reasons
     const bestRepReasons: import("@/types").PerfectRepReason[] = [];
     if (bestRep) {
       if (bestRep.score >= 90) bestRepReasons.push("high_score");
@@ -71,14 +76,14 @@ export function WorkoutControls() {
       if ((bestRep.issueCount ?? bestRep.issues.length) === 0 && bestRep.score >= 85) bestRepReasons.push("full_rom");
       if (bestRep.score >= 95) bestRepReasons.push("stable_form");
       if (bestIdx > 0) {
-        const prev = repResults[bestIdx - 1];
+        const prev = finalReps[bestIdx - 1];
         if (Math.abs(bestRep.score - prev.score) <= 5 && bestRep.score >= 80) bestRepReasons.push("consistent_tempo");
       }
     }
 
-    const perfectRepCount = repResults.filter((r) => r.score >= 90).length;
+    const perfectRepCount = finalReps.filter((r) => r.score >= 90).length;
 
-    const allIssues = repResults.flatMap((r) => r.issues);
+    const allIssues = finalReps.flatMap((r) => r.issues);
     const issueCounts: Record<string, number> = {};
     for (const iss of allIssues) if (iss.message) issueCounts[iss.message] = (issueCounts[iss.message] || 0) + 1;
     const mistakeSummary = Object.entries(issueCounts)
@@ -86,7 +91,7 @@ export function WorkoutControls() {
       .slice(0, 5)
       .map(([issue, count]) => ({ issue, count }));
 
-    const scoreTimeline = repResults.map((r) => ({
+    const scoreTimeline = finalReps.map((r) => ({
       time: r.timestamp - (sessionStartTime || now),
       score: r.score,
     }));
@@ -98,10 +103,10 @@ export function WorkoutControls() {
       weight: sessionWeight,
       startTime: sessionStartTime || now,
       endTime: now,
-      reps: repResults,
+      reps: finalReps,
       totalScore,
       caloriesBurned: Math.round(caloriesBurned * 10) / 10,
-      isRecorded: isRecording,
+      isRecorded: wasRecording,
       recordingId,
       bestRepIndex: bestIdx,
       bestRepScore: bestRep?.score ?? 0,
@@ -112,21 +117,16 @@ export function WorkoutControls() {
       mistakeSummary,
     };
 
+    setLastSession(session);
+
     try {
       saveSession(session);
       await updateStreak();
     } catch (err) {
-      // Supabase or local save can fail offline / misconfigured — still end the workout
       console.warn("Workout save/sync failed:", err);
     }
 
-    setLastSession(session);
-
-    // Stop workout so MediaRecorder fires onstop and sets the blob
-    stopWorkout();
-
-    // Save recording blob to IndexedDB after a short delay for the blob to be set
-    if (isRecording && recordingId) {
+    if (wasRecording && recordingId) {
       const duration = Math.floor((now - (sessionStartTime || now)) / 1000);
       setTimeout(async () => {
         const blob = useWorkoutStore.getState().recordingBlob;
@@ -137,7 +137,7 @@ export function WorkoutControls() {
               sessionId: session.id,
               exercise: selectedExercise,
               exerciseName: config?.name || selectedExercise,
-              reps: repResults.length,
+              reps: finalReps.length,
               score: totalScore,
               duration,
               createdAt: now,

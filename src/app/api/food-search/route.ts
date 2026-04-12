@@ -59,17 +59,17 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    // POST is required for correct `dataType` handling (must be a JSON array).
-    // Include Branded — many common foods (e.g. donuts) only exist there.
-    const res = await fetch(`${USDA_BASE}/foods/search?api_key=${encodeURIComponent(apiKey)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({
-        query: query.trim(),
-        pageSize: 25,
-        dataType: ["Branded", "Survey (FNDDS)", "Foundation", "SR Legacy"],
-      }),
-      next: { revalidate: 3600 },
+    const params = new URLSearchParams({
+      api_key: apiKey,
+      query: query.trim(),
+      pageSize: "25",
+      dataType: "Branded,Survey (FNDDS),Foundation,SR Legacy",
+    });
+
+    const res = await fetch(`${USDA_BASE}/foods/search?${params.toString()}`, {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      cache: "no-store",
     });
 
     if (!res.ok) {

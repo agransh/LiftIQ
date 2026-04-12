@@ -43,6 +43,8 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   } = useWorkoutStore();
 
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">(settings.cameraFacing || "environment");
+  const [zoomLevel, setZoomLevel] = useState<"0.5x" | "1x">("1x");
+  const [zoomSupported, setZoomSupported] = useState(false);
   const [formCheckProgress, setFormCheckProgress] = useState(0);
   const [formDetectedBanner, setFormDetectedBanner] = useState(false);
   const [formCheckHint, setFormCheckHint] = useState("");
@@ -83,7 +85,42 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
     const next = cameraFacing === "user" ? "environment" : "user";
     setCameraFacing(next);
     updateSettings({ cameraFacing: next });
+    if (next === "user") {
+      setZoomSupported(false);
+      setZoomLevel("1x");
+    }
   };
+
+  const videoElRef = useRef<HTMLVideoElement | null>(null);
+
+  const getVideoTrack = () => {
+    const video = videoElRef.current;
+    if (!video?.srcObject) return null;
+    return (video.srcObject as MediaStream).getVideoTracks()[0] ?? null;
+  };
+
+  const applyZoom = useCallback((level: "0.5x" | "1x") => {
+    const track = getVideoTrack();
+    if (!track) return;
+    const caps = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number } };
+    if (!caps.zoom) return;
+    const targetZoom = level === "0.5x" ? caps.zoom.min : Math.min(2, caps.zoom.max);
+    track.applyConstraints({ advanced: [{ zoom: targetZoom } as Record<string, unknown>] } as MediaTrackConstraints);
+  }, []);
+
+  const handleToggleZoom = () => {
+    const next = zoomLevel === "1x" ? "0.5x" : "1x";
+    setZoomLevel(next);
+    applyZoom(next);
+  };
+
+  const checkZoomSupport = useCallback(() => {
+    if (cameraFacing !== "environment") { setZoomSupported(false); return; }
+    const track = getVideoTrack();
+    if (!track) { setZoomSupported(false); return; }
+    const caps = track.getCapabilities() as MediaTrackCapabilities & { zoom?: { min: number; max: number } };
+    setZoomSupported(!!caps.zoom && caps.zoom.max > caps.zoom.min);
+  }, [cameraFacing]);
 
   // Wire VoiceManager state changes into Zustand for UI reactivity
   useEffect(() => {
@@ -344,8 +381,13 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
   }, [drawSkeleton]);
 
   useEffect(() => {
+    videoElRef.current = videoRef.current;
+  });
+
+  useEffect(() => {
     setPoseStatus(status);
-  }, [status, setPoseStatus]);
+    if (status === "detecting") checkZoomSupport();
+  }, [status, setPoseStatus, checkZoomSupport]);
 
   // Start/stop MediaRecorder based on recording state
   useEffect(() => {
@@ -406,18 +448,33 @@ export function WebcamFeed({ mobile = false }: WebcamFeedProps) {
         style={cameraFacing === "user" ? { transform: "scaleX(-1)" } : undefined}
       />
 
-      {/* Camera flip button */}
+      {/* Camera controls */}
       {status === "detecting" && (
-        <button
-          onClick={handleFlipCamera}
-          className={cn(
-            "absolute z-20 rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center transition-all hover:bg-black/70 active:scale-95",
-            mobile ? "top-3 right-3 h-9 w-9" : "top-4 right-4 h-10 w-10"
+        <div className={cn("absolute z-20 flex items-center gap-2", mobile ? "top-3 right-3" : "top-4 right-4")}>
+          {zoomSupported && cameraFacing === "environment" && (
+            <button
+              onClick={handleToggleZoom}
+              className={cn(
+                "rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center transition-all hover:bg-black/70 active:scale-95",
+                mobile ? "h-9 px-3" : "h-10 px-3.5"
+              )}
+            >
+              <span className={cn("text-white font-bold tabular-nums", mobile ? "text-xs" : "text-sm")}>
+                {zoomLevel}
+              </span>
+            </button>
           )}
-          title={cameraFacing === "user" ? "Switch to back camera" : "Switch to front camera"}
-        >
-          <SwitchCamera className={cn("text-white", mobile ? "h-4 w-4" : "h-5 w-5")} />
-        </button>
+          <button
+            onClick={handleFlipCamera}
+            className={cn(
+              "rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center transition-all hover:bg-black/70 active:scale-95",
+              mobile ? "h-9 w-9" : "h-10 w-10"
+            )}
+            title={cameraFacing === "user" ? "Switch to back camera" : "Switch to front camera"}
+          >
+            <SwitchCamera className={cn("text-white", mobile ? "h-4 w-4" : "h-5 w-5")} />
+          </button>
+        </div>
       )}
 
       {/* Countdown overlay */}
