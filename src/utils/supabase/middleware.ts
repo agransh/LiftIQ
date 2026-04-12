@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
 
-/** Routes that never require a Supabase session (auth pages + OAuth return). */
-const PUBLIC_PATH_PREFIXES = ["/login", "/auth/callback"];
+/** Routes that never require a Supabase session (auth pages, OAuth return, API routes). */
+const PUBLIC_PATH_PREFIXES = ["/login", "/auth/callback", "/api"];
 
 function isPublicPath(pathname: string) {
   return PUBLIC_PATH_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));

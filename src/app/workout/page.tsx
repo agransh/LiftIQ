@@ -53,11 +53,20 @@ export default function WorkoutPage() {
     clearRepResults,
     setRecordingBlob,
   } = useWorkoutStore();
+  const [isMobile, setIsMobile] = useState(false);
   const [showExercises, setShowExercises] = useState(false);
   const [showExerciseManager, setShowExerciseManager] = useState(false);
   const [showRoutineBuilder, setShowRoutineBuilder] = useState(false);
   const [selectedUserExercise, setSelectedUserExercise] = useState<UserExercise | null>(null);
   const [routineProgress, setRoutineProgress] = useState<RoutineProgressState | null>(null);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     if (typeof window !== "undefined" && !hasCompletedOnboarding()) {
@@ -188,7 +197,7 @@ export default function WorkoutPage() {
       {/* ─── MOBILE ─── */}
       <div className="md:hidden flex flex-col h-[100dvh]">
         <div className="relative flex-1 min-h-0 flex flex-col">
-          {hasSelectedExercise ? (
+          {hasSelectedExercise && isMobile ? (
             <WebcamFeed mobile />
           ) : (
             <ExerciseCameraPlaceholder mobile />
@@ -356,7 +365,7 @@ export default function WorkoutPage() {
               >
                 {isWorkoutActive && <div className="accent-line" />}
                 <div className="bg-[#040408]">
-                  {hasSelectedExercise ? <WebcamFeed /> : <ExerciseCameraPlaceholder />}
+                  {hasSelectedExercise && !isMobile ? <WebcamFeed /> : <ExerciseCameraPlaceholder />}
                 </div>
               </div>
               <CoachingCues />

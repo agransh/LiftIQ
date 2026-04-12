@@ -59,18 +59,19 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const params = new URLSearchParams({
-      api_key: apiKey,
-      query: query.trim(),
-      pageSize: "25",
-      dataType: "Branded,Survey (FNDDS),Foundation,SR Legacy",
-    });
-
-    const res = await fetch(`${USDA_BASE}/foods/search?${params.toString()}`, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      cache: "no-store",
-    });
+    const res = await fetch(
+      `${USDA_BASE}/foods/search?api_key=${encodeURIComponent(apiKey)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          query: query.trim(),
+          pageSize: 25,
+          dataType: ["Branded", "Survey (FNDDS)", "Foundation", "SR Legacy"],
+        }),
+        cache: "no-store",
+      }
+    );
 
     if (!res.ok) {
       const errText = await res.text();
