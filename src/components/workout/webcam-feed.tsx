@@ -55,6 +55,13 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
 
+  // Compositor — paints video + live skeleton + ghost coach into one canvas
+  // so MediaRecorder can capture the full overlay (not just the raw camera).
+  const compositorCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const liveCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const ghostCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const compositorRafRef = useRef<number>(0);
+
   const repDetectorRef = useRef<RepDetector | null>(null);
   const exerciseRef = useRef(selectedExercise);
   const formCheckFramesRef = useRef(0);
@@ -328,7 +335,12 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
         return;
       }
 
-      if (!isWorkoutActive || isPaused || !repDetectorRef.current) return;
+      // Always show the live skeleton when pose is detected — even before the
+      // workout starts and while ghost coach is on, so the user can compare.
+      if (!isWorkoutActive || isPaused || !repDetectorRef.current) {
+        if (coreVisible >= 3) drawSkeletonRef.current(landmarks);
+        return;
+      }
       if (coreVisible < 4) return;
 
       const result = repDetectorRef.current.update(landmarks);
@@ -379,6 +391,11 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
     facingMode: cameraFacing,
   });
 
+  // Mirror the live overlay canvas ref so the compositor can grab pixels from it.
+  useEffect(() => {
+    liveCanvasRef.current = canvasRef.current;
+  });
+
   useLayoutEffect(() => {
     drawSkeletonRef.current = drawSkeleton;
   }, [drawSkeleton]);
@@ -392,33 +409,114 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
     if (status === "detecting") checkZoomSupport();
   }, [status, setPoseStatus, checkZoomSupport]);
 
-  // Start/stop MediaRecorder based on recording state
+  // Compositor loop — draws video + live skeleton overlay + ghost coach
+  // into a single hidden canvas so MediaRecorder can capture the full frame.
+  // Runs only while we're recording (cheap when idle).
   useEffect(() => {
-    if (isWorkoutActive && isRecording && videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      recordedChunksRef.current = [];
+    const wantRecord = isWorkoutActive && isRecording;
+    if (!wantRecord) return;
 
-      const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
-        ? "video/webm;codecs=vp9"
-        : "video/webm";
+    let cancelled = false;
+    const tick = () => {
+      if (cancelled) return;
+      const composite = compositorCanvasRef.current;
+      const video = videoRef.current;
+      if (composite && video && video.videoWidth > 0) {
+        if (composite.width !== video.videoWidth || composite.height !== video.videoHeight) {
+          composite.width = video.videoWidth;
+          composite.height = video.videoHeight;
+        }
+        const ctx = composite.getContext("2d");
+        if (ctx) {
+          ctx.clearRect(0, 0, composite.width, composite.height);
 
-      try {
-        const recorder = new MediaRecorder(stream, { mimeType });
-        recorder.ondataavailable = (e) => {
-          if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-        };
-        recorder.onstop = () => {
-          if (recordedChunksRef.current.length > 0) {
-            const blob = new Blob(recordedChunksRef.current, { type: mimeType });
-            setRecordingBlob(blob);
+          // 1) Camera frame (mirrored when using the front camera, like on screen)
+          ctx.save();
+          if (cameraFacing === "user") {
+            ctx.translate(composite.width, 0);
+            ctx.scale(-1, 1);
           }
-          recordedChunksRef.current = [];
-        };
-        recorder.start(1000);
-        mediaRecorderRef.current = recorder;
-      } catch {
-        console.warn("MediaRecorder not supported");
+          ctx.drawImage(video, 0, 0, composite.width, composite.height);
+          ctx.restore();
+
+          // 2) Live skeleton overlay (already rendered each frame onto liveCanvas)
+          const live = liveCanvasRef.current;
+          if (live && live.width > 0 && live.height > 0) {
+            ctx.save();
+            if (cameraFacing === "user") {
+              ctx.translate(composite.width, 0);
+              ctx.scale(-1, 1);
+            }
+            ctx.drawImage(live, 0, 0, composite.width, composite.height);
+            ctx.restore();
+          }
+
+          // 3) Ghost coach overlay (its own internal canvas)
+          const ghost = ghostCanvasRef.current;
+          if (ghostCoachEnabled && ghost && ghost.width > 0 && ghost.height > 0) {
+            ctx.drawImage(ghost, 0, 0, composite.width, composite.height);
+          }
+        }
       }
+      compositorRafRef.current = requestAnimationFrame(tick);
+    };
+    compositorRafRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelled = true;
+      if (compositorRafRef.current) cancelAnimationFrame(compositorRafRef.current);
+    };
+  }, [isWorkoutActive, isRecording, ghostCoachEnabled, cameraFacing, videoRef]);
+
+  // Start/stop MediaRecorder. Prefer the compositor canvas (with overlays);
+  // fall back to the raw camera stream if captureStream is unavailable.
+  useEffect(() => {
+    if (!isWorkoutActive || !isRecording) return;
+    const video = videoRef.current;
+    if (!video?.srcObject) return;
+
+    recordedChunksRef.current = [];
+
+    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp9")
+      ? "video/webm;codecs=vp9"
+      : "video/webm";
+
+    let chosenStream: MediaStream | null = null;
+
+    // Try compositor stream first (carries skeleton + ghost overlay).
+    const composite = compositorCanvasRef.current;
+    const captureStream =
+      composite && (composite as HTMLCanvasElement & { captureStream?: (fps?: number) => MediaStream }).captureStream;
+    if (composite && typeof captureStream === "function") {
+      try {
+        chosenStream = captureStream.call(composite, 30);
+      } catch {
+        chosenStream = null;
+      }
+    }
+
+    // Fallback: raw camera stream (legacy behavior — no overlay in playback).
+    if (!chosenStream) {
+      chosenStream = video.srcObject as MediaStream;
+    }
+
+    let recorder: MediaRecorder | null = null;
+    try {
+      recorder = new MediaRecorder(chosenStream, { mimeType });
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        if (recordedChunksRef.current.length > 0) {
+          const blob = new Blob(recordedChunksRef.current, { type: mimeType });
+          setRecordingBlob(blob);
+        }
+        recordedChunksRef.current = [];
+      };
+      recorder.start(1000);
+      mediaRecorderRef.current = recorder;
+    } catch {
+      console.warn("MediaRecorder not supported");
     }
 
     return () => {
@@ -453,8 +551,20 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
 
       {/* Ghost coach overlay */}
       {ghostCoachEnabled && selectedExercise && onDismissGhostCoach && (
-        <GhostCoachOverlay exerciseId={selectedExercise} onDismiss={onDismissGhostCoach} />
+        <GhostCoachOverlay
+          exerciseId={selectedExercise}
+          onDismiss={onDismissGhostCoach}
+          canvasRefExternal={ghostCanvasRef}
+        />
       )}
+
+      {/* Hidden compositor canvas — captured by MediaRecorder during recording */}
+      <canvas
+        ref={compositorCanvasRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute -z-10 opacity-0"
+        style={{ width: 1, height: 1 }}
+      />
 
       {/* Camera controls */}
       {status === "detecting" && (

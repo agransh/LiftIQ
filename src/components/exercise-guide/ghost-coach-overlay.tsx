@@ -1,5 +1,6 @@
 "use client";
 
+import type { RefObject } from "react";
 import { AnimatedSkeleton } from "./animated-skeleton";
 import { getExerciseGuide } from "@/lib/exercises/exercise-visual-guides";
 import { X } from "lucide-react";
@@ -7,15 +8,17 @@ import { X } from "lucide-react";
 interface GhostCoachOverlayProps {
   exerciseId: string;
   onDismiss: () => void;
+  /** Outward ref so a recording compositor can sample the ghost canvas. */
+  canvasRefExternal?: RefObject<HTMLCanvasElement | null>;
 }
 
-export function GhostCoachOverlay({ exerciseId, onDismiss }: GhostCoachOverlayProps) {
+export function GhostCoachOverlay({ exerciseId, onDismiss, canvasRefExternal }: GhostCoachOverlayProps) {
   const guide = getExerciseGuide(exerciseId);
   if (!guide) return null;
 
   return (
     <div className="absolute inset-0 z-15 pointer-events-none">
-      <AnimatedSkeleton guide={guide} ghost />
+      <AnimatedSkeleton guide={guide} ghost canvasRefExternal={canvasRefExternal} />
       <button
         onClick={onDismiss}
         className="pointer-events-auto absolute top-12 left-3 h-9 w-9 rounded-full bg-black/70 backdrop-blur-sm border border-purple-500/30 flex items-center justify-center text-purple-300 hover:text-white hover:bg-black/90 transition-all active:scale-90"

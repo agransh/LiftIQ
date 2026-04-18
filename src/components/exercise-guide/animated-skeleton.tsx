@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useCallback, useState, type RefObject } from "react";
 import { Play, Pause, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { PoseFrame, ExerciseVisualGuide } from "@/lib/exercises/exercise-visual-guides";
@@ -12,6 +12,8 @@ interface AnimatedSkeletonProps {
   className?: string;
   ghost?: boolean;
   showControls?: boolean;
+  /** Optional outward ref so a parent (e.g. the recording compositor) can sample this canvas. */
+  canvasRefExternal?: RefObject<HTMLCanvasElement | null>;
 }
 
 function easeInOut(t: number): number {
@@ -65,8 +67,26 @@ function drawArrow(
   ctx.fill();
 }
 
-export function AnimatedSkeleton({ guide, width, height, className, ghost, showControls = false }: AnimatedSkeletonProps) {
+export function AnimatedSkeleton({
+  guide,
+  width,
+  height,
+  className,
+  ghost,
+  showControls = false,
+  canvasRefExternal,
+}: AnimatedSkeletonProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  const setCanvasRef = useCallback(
+    (node: HTMLCanvasElement | null) => {
+      canvasRef.current = node;
+      if (canvasRefExternal) {
+        (canvasRefExternal as { current: HTMLCanvasElement | null }).current = node;
+      }
+    },
+    [canvasRefExternal],
+  );
   const animRef = useRef<number>(0);
   const stateRef = useRef({ frameIdx: 0, elapsed: 0, lastTime: 0 });
   const trailRef = useRef<PoseFrame | null>(null);
@@ -301,7 +321,7 @@ export function AnimatedSkeleton({ guide, width, height, className, ghost, showC
   return (
     <div className="relative" style={{ width: width ?? "100%", height: height ?? "100%" }}>
       <canvas
-        ref={canvasRef}
+        ref={setCanvasRef}
         className={className}
         style={{ width: "100%", height: "100%", display: "block" }}
       />

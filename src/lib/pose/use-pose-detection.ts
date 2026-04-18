@@ -120,6 +120,86 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
     }
   }, []);
 
+  /**
+   * Pure draw routine — paints a polished 33-joint skeleton onto any 2D context.
+   * Used by both the live overlay canvas and the offscreen recording compositor.
+   */
+  const drawSkeletonToCtx = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      width: number,
+      height: number,
+      landmarks: Landmark[],
+      jointColors?: Map<number, string>,
+      opts?: { clear?: boolean },
+    ) => {
+      if (opts?.clear !== false) ctx.clearRect(0, 0, width, height);
+
+      const mobile = isMobileDevice();
+      const lineWidth = mobile ? 2.5 : 3.5;
+      const baseRadius = mobile ? 4 : 5;
+      const targetRadius = mobile ? 6 : 7;
+
+      // Bone glow pass
+      ctx.save();
+      ctx.shadowColor = "rgba(0, 230, 170, 0.55)";
+      ctx.shadowBlur = mobile ? 10 : 14;
+      ctx.strokeStyle = "rgba(0, 230, 170, 0.85)";
+      ctx.lineWidth = lineWidth;
+      ctx.lineCap = "round";
+      for (const [start, end] of SKELETON_CONNECTIONS) {
+        const a = landmarks[start];
+        const b = landmarks[end];
+        if (a && b && (a.visibility ?? 1) > 0.5 && (b.visibility ?? 1) > 0.5) {
+          ctx.beginPath();
+          ctx.moveTo(a.x * width, a.y * height);
+          ctx.lineTo(b.x * width, b.y * height);
+          ctx.stroke();
+        }
+      }
+      ctx.restore();
+
+      // Joints — draw all 33 with halo + core + inner highlight for visibility
+      for (let i = 0; i < landmarks.length; i++) {
+        const lm = landmarks[i];
+        if ((lm.visibility ?? 1) < 0.5) continue;
+
+        const x = lm.x * width;
+        const y = lm.y * height;
+        const overrideColor = jointColors?.get(i);
+        const isTarget = jointColors?.has(i) ?? false;
+        const color = overrideColor || "#00ffaa";
+        const radius = isTarget ? targetRadius : baseRadius;
+
+        // Soft outer halo
+        ctx.save();
+        ctx.shadowColor = color;
+        ctx.shadowBlur = isTarget ? (mobile ? 12 : 16) : mobile ? 6 : 9;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, radius, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.restore();
+
+        // Inner white pip — gives every joint a polished readable center
+        ctx.fillStyle = "rgba(255,255,255,0.85)";
+        ctx.beginPath();
+        ctx.arc(x, y, Math.max(1, radius * 0.35), 0, 2 * Math.PI);
+        ctx.fill();
+
+        // Pulsing ring for issue / target joints
+        if (isTarget) {
+          ctx.beginPath();
+          ctx.arc(x, y, radius + 2.5, 0, 2 * Math.PI);
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        }
+      }
+    },
+    [],
+  );
+
   const drawSkeleton = useCallback(
     (landmarks: Landmark[], jointColors?: Map<number, string>) => {
       const canvas = canvasRef.current;
@@ -129,54 +209,14 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const mobile = isMobileDevice();
-      const lineWidth = mobile ? 2 : 3;
-      const baseRadius = mobile ? 4 : 5;
-      const targetRadius = mobile ? 6 : 7;
-
-      // Draw connections
-      ctx.strokeStyle = "rgba(0, 255, 170, 0.6)";
-      ctx.lineWidth = lineWidth;
-      for (const [start, end] of SKELETON_CONNECTIONS) {
-        const a = landmarks[start];
-        const b = landmarks[end];
-        if (a && b && (a.visibility ?? 1) > 0.5 && (b.visibility ?? 1) > 0.5) {
-          ctx.beginPath();
-          ctx.moveTo(a.x * canvas.width, a.y * canvas.height);
-          ctx.lineTo(b.x * canvas.width, b.y * canvas.height);
-          ctx.stroke();
-        }
+      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
       }
 
-      // Draw joints
-      for (let i = 0; i < landmarks.length; i++) {
-        const lm = landmarks[i];
-        if ((lm.visibility ?? 1) < 0.5) continue;
-
-        const x = lm.x * canvas.width;
-        const y = lm.y * canvas.height;
-        const color = jointColors?.get(i) || "#00ffaa";
-        const radius = jointColors?.has(i) ? targetRadius : baseRadius;
-
-        ctx.beginPath();
-        ctx.arc(x, y, radius, 0, 2 * Math.PI);
-        ctx.fillStyle = color;
-        ctx.fill();
-
-        if (jointColors?.has(i)) {
-          ctx.beginPath();
-          ctx.arc(x, y, radius + 2, 0, 2 * Math.PI);
-          ctx.strokeStyle = color;
-          ctx.lineWidth = 2;
-          ctx.stroke();
-        }
-      }
+      drawSkeletonToCtx(ctx, canvas.width, canvas.height, landmarks, jointColors);
     },
-    []
+    [drawSkeletonToCtx],
   );
 
   const detect = useCallback(() => {
@@ -262,5 +302,5 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
     initCamera(facingMode);
   }, [facingMode, initCamera]);
 
-  return { videoRef, canvasRef, landmarks, status, drawSkeleton } as const;
+  return { videoRef, canvasRef, landmarks, status, drawSkeleton, drawSkeletonToCtx } as const;
 }
