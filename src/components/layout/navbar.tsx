@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { Activity, BarChart3, Dumbbell, LogOut, Settings, Video } from "lucide-react";
+import { Activity, BarChart3, Brain, Dumbbell, LogOut, Settings, Video } from "lucide-react";
 import { createClient } from "@/utils/supabase/client";
 import { clearAllStorage } from "@/lib/storage";
 import { cn } from "@/lib/utils";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 const navItems = [
   { href: "/", label: "Home", icon: Activity },
   { href: "/workout", label: "Train", icon: Dumbbell },
+  { href: "/mind", label: "Mind", icon: Brain },
   { href: "/recordings", label: "Library", icon: Video },
   { href: "/dashboard", label: "Stats", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
