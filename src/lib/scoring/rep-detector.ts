@@ -1,7 +1,23 @@
 import { ExerciseConfig, Landmark, RepResult, JointFeedback, RepCycleConfig } from "@/types";
-import { getCommonAngles } from "@/lib/pose/angle-utils";
+import { getCommonAngles, POSE_LANDMARKS as L } from "@/lib/pose/angle-utils";
 import { classifyPoseFamily, PoseFamily } from "@/lib/pose/pose-family";
 import { REQUIRED_FAMILY } from "@/lib/exercises/start-validators";
+import { FeedbackAggregator, CueStabilizer } from "@/lib/scoring/feedback-aggregator";
+import { frameTrust } from "@/lib/pose/landmark-quality";
+
+/**
+ * Core landmarks every exercise depends on. Used to compute a per-frame
+ * trust score so noisy frames contribute less to the rep's average score.
+ */
+const CORE_LANDMARKS = [
+  L.LEFT_SHOULDER, L.RIGHT_SHOULDER,
+  L.LEFT_HIP, L.RIGHT_HIP,
+  L.LEFT_KNEE, L.RIGHT_KNEE,
+  L.LEFT_ELBOW, L.RIGHT_ELBOW,
+];
+
+/** Frame-trust threshold below which we don't accept the frame's issues. */
+const MIN_FRAME_TRUST = 0.45;
 
 const ANGLE_SMOOTHING_WINDOW = 5;
 const HYSTERESIS_BUFFER = 8;
@@ -26,6 +42,13 @@ export class RepDetector {
 
   private currentIssues: JointFeedback[] = [];
   private scoreAccumulator: number[] = [];
+  /** Per-frame trust weights matching scoreAccumulator entries 1:1. */
+  private trustAccumulator: number[] = [];
+
+  /** Stabilizes per-frame raw issues into "confirmed across N frames" issues. */
+  private feedbackAggregator = new FeedbackAggregator();
+  /** Same idea for coaching cue strings. */
+  private cueStabilizer = new CueStabilizer();
 
   private cycleState: CycleState = "idle";
   private peakAngle = 0;
@@ -61,6 +84,9 @@ export class RepDetector {
     this.angleHistory = [];
     this.currentIssues = [];
     this.scoreAccumulator = [];
+    this.trustAccumulator = [];
+    this.feedbackAggregator.reset();
+    this.cueStabilizer.reset();
     this.cycleState = "idle";
     this.peakAngle = 0;
     this.valleyAngle = 0;
@@ -140,6 +166,7 @@ export class RepDetector {
             : Math.max(this.peakAngle || angle, angle);
           this.currentIssues = [];
           this.scoreAccumulator = [];
+          this.trustAccumulator = [];
         } else {
           this.peakAngle = angle;
         }
@@ -240,6 +267,7 @@ export class RepDetector {
       this.deepFrameCount = 0;
       this.currentIssues = [];
       this.scoreAccumulator = [score];
+      this.trustAccumulator = [1];
     }
 
     if (this.inRep && (rawPhase === deepPhase || phase === deepPhase)) {
@@ -277,11 +305,28 @@ export class RepDetector {
     const rawPhase = this.config.detectPhase(rawAngles, landmarks);
     const phase = this.getStablePhase(rawPhase);
 
-    const { score, issues } = this.config.scoreRep(smoothedAngles, landmarks, phase);
-    const cues = this.config.getCoachingCues(smoothedAngles, landmarks, phase);
+    const { score, issues: rawIssues } = this.config.scoreRep(smoothedAngles, landmarks, phase);
+    const rawCues = this.config.getCoachingCues(smoothedAngles, landmarks, phase);
 
-    this.currentIssues = [...this.currentIssues, ...issues];
+    // ---- Visibility gating --------------------------------------------
+    // Compute how much we should trust this frame's pose readings. Frames
+    // where MediaPipe is uncertain about core landmarks shouldn't be able
+    // to introduce false-positive issues, drag the rep score down, or
+    // surface a coaching cue. We keep the rep-cycle math (which uses
+    // smoothed angles) unaffected so reps still count when the user is
+    // partially occluded.
+    const trust = frameTrust(landmarks, CORE_LANDMARKS);
+    const frameAccepted = trust >= MIN_FRAME_TRUST;
+
+    // Stabilize: an issue/cue must appear in 3-of-last-6 frames before we
+    // surface it. This removes the single-frame flicker that was causing
+    // "knee caving" / "hips sagging" style false alarms.
+    const stableIssues = this.feedbackAggregator.push(rawIssues, frameAccepted);
+    const stableCues = this.cueStabilizer.push(rawCues, frameAccepted);
+
+    this.currentIssues = [...this.currentIssues, ...rawIssues];
     this.scoreAccumulator.push(score);
+    this.trustAccumulator.push(frameAccepted ? trust : 0);
 
     // ---- Family-drift guard --------------------------------------------
     // If the user has clearly left this exercise's pose family for several
@@ -329,24 +374,46 @@ export class RepDetector {
 
     let repResult: RepResult | undefined;
     if (repCompleted) {
-      const avgScore = this.scoreAccumulator.length > 0
-        ? Math.round(this.scoreAccumulator.reduce((a, b) => a + b, 0) / this.scoreAccumulator.length)
-        : score;
+      // Visibility-weighted average: a frame the model couldn't read well
+      // shouldn't drag a clean rep down. If every frame had zero trust we
+      // fall back to a plain mean (better than NaN).
+      const totalTrust = this.trustAccumulator.reduce((a, b) => a + b, 0);
+      let avgScore: number;
+      if (totalTrust > 0.01) {
+        let weighted = 0;
+        for (let i = 0; i < this.scoreAccumulator.length; i++) {
+          weighted += this.scoreAccumulator[i] * (this.trustAccumulator[i] ?? 0);
+        }
+        avgScore = Math.round(weighted / totalTrust);
+      } else {
+        avgScore = this.scoreAccumulator.length > 0
+          ? Math.round(this.scoreAccumulator.reduce((a, b) => a + b, 0) / this.scoreAccumulator.length)
+          : score;
+      }
+
+      // Use the aggregator's confirmed issues for the rep summary instead
+      // of every per-frame raw issue — this is what the user actually sees
+      // in the rep card, and we want it to match what was on screen.
+      const repIssues = this.feedbackAggregator.snapshot();
+      // Roll the windows over so we don't carry stale state into the next rep.
+      this.feedbackAggregator.reset();
+      this.cueStabilizer.reset();
 
       repResult = {
         score: avgScore,
-        issues: this.deduplicateIssues(this.currentIssues),
+        issues: this.deduplicateIssues(repIssues.length > 0 ? repIssues : this.currentIssues),
         timestamp: Date.now(),
       };
       this.currentIssues = [];
       this.scoreAccumulator = [];
+      this.trustAccumulator = [];
     }
 
     return {
       phase,
       score,
-      issues,
-      cues,
+      issues: stableIssues,
+      cues: stableCues,
       repCompleted,
       repResult,
       repCount: this.repCount,

@@ -1,5 +1,6 @@
 import { ExerciseConfig, Landmark, JointFeedback } from "@/types";
 import { calculateAngle, POSE_LANDMARKS as L } from "@/lib/pose/angle-utils";
+import { allTrusted, bestSide, safeAngle, vis, TRUST_VIS } from "@/lib/pose/landmark-quality";
 
 function clampScore(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score)));
@@ -41,43 +42,67 @@ export const pushupConfig: ExerciseConfig = {
     const issues: JointFeedback[] = [];
     let score = 100;
 
-    const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
+    const leftElbowOk = allTrusted(landmarks, [L.LEFT_SHOULDER, L.LEFT_ELBOW, L.LEFT_WRIST]);
+    const rightElbowOk = allTrusted(landmarks, [L.RIGHT_SHOULDER, L.RIGHT_ELBOW, L.RIGHT_WRIST]);
 
-    // Depth check (aligned with detectPhase bottom zone)
-    if (phase === "bottom" && avgElbow > 125) {
+    // Depth check — only judge if at least one elbow chain is reliable.
+    let avgElbow = NaN;
+    if (leftElbowOk && rightElbowOk) avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
+    else if (leftElbowOk) avgElbow = angles.leftElbow;
+    else if (rightElbowOk) avgElbow = angles.rightElbow;
+
+    if (isFinite(avgElbow) && phase === "bottom" && avgElbow > 125) {
       const penalty = Math.min(25, (avgElbow - 118) * 0.8);
       score -= penalty;
       issues.push({ joint: "elbows", status: avgElbow > 135 ? "poor" : "moderate", message: "Lower your chest more" });
     }
 
-    // Body alignment — hip sag or pike
-    const bodyAngle = calculateAngle(landmarks[L.LEFT_SHOULDER], landmarks[L.LEFT_HIP], landmarks[L.LEFT_ANKLE]);
-    if (bodyAngle < 160) {
-      const deviation = 180 - bodyAngle;
-      if (landmarks[L.LEFT_HIP].y > landmarks[L.LEFT_SHOULDER].y + 0.05) {
-        score -= Math.min(25, deviation * 0.8);
-        issues.push({ joint: "hips", status: deviation > 25 ? "poor" : "moderate", message: "Hips are sagging — keep body straight" });
-      } else {
-        score -= Math.min(20, deviation * 0.6);
-        issues.push({ joint: "hips", status: "moderate", message: "Hips are too high — lower them" });
+    // Body alignment — pick whichever side has clean shoulder/hip/ankle so a
+    // partially-occluded torso doesn't trigger a false "hips sagging" alert.
+    const side = bestSide(
+      landmarks,
+      [L.LEFT_SHOULDER, L.LEFT_HIP, L.LEFT_ANKLE],
+      [L.RIGHT_SHOULDER, L.RIGHT_HIP, L.RIGHT_ANKLE],
+    );
+    if (side) {
+      const [shoulderIdx, hipIdx, ankleIdx] = side;
+      const bodyAngle = calculateAngle(landmarks[shoulderIdx], landmarks[hipIdx], landmarks[ankleIdx]);
+      if (bodyAngle < 160) {
+        const deviation = 180 - bodyAngle;
+        if (landmarks[hipIdx].y > landmarks[shoulderIdx].y + 0.05) {
+          score -= Math.min(25, deviation * 0.8);
+          issues.push({ joint: "hips", status: deviation > 25 ? "poor" : "moderate", message: "Hips are sagging — keep body straight" });
+        } else {
+          score -= Math.min(20, deviation * 0.6);
+          issues.push({ joint: "hips", status: "moderate", message: "Hips are too high — lower them" });
+        }
       }
     }
 
-    // Elbow flare
-    const elbowFlareLeft = calculateAngle(landmarks[L.LEFT_WRIST], landmarks[L.LEFT_ELBOW], landmarks[L.LEFT_HIP]);
-    const elbowFlareRight = calculateAngle(landmarks[L.RIGHT_WRIST], landmarks[L.RIGHT_ELBOW], landmarks[L.RIGHT_HIP]);
-    const avgFlare = (elbowFlareLeft + elbowFlareRight) / 2;
+    // Elbow flare — score only the sides we trust, average if we have both.
+    let avgFlare = NaN;
+    const leftFlare = leftElbowOk && vis(landmarks, L.LEFT_HIP) >= TRUST_VIS
+      ? calculateAngle(landmarks[L.LEFT_WRIST], landmarks[L.LEFT_ELBOW], landmarks[L.LEFT_HIP])
+      : NaN;
+    const rightFlare = rightElbowOk && vis(landmarks, L.RIGHT_HIP) >= TRUST_VIS
+      ? calculateAngle(landmarks[L.RIGHT_WRIST], landmarks[L.RIGHT_ELBOW], landmarks[L.RIGHT_HIP])
+      : NaN;
+    if (isFinite(leftFlare) && isFinite(rightFlare)) avgFlare = (leftFlare + rightFlare) / 2;
+    else if (isFinite(leftFlare)) avgFlare = leftFlare;
+    else if (isFinite(rightFlare)) avgFlare = rightFlare;
 
-    if (avgFlare > 100) {
+    if (isFinite(avgFlare) && avgFlare > 100) {
       score -= Math.min(20, (avgFlare - 80) * 0.5);
       issues.push({ joint: "elbows", status: avgFlare > 120 ? "poor" : "moderate", message: "Keep elbows tucked, don't flare out" });
     }
 
-    // Symmetry check
-    const elbowDiff = Math.abs(angles.leftElbow - angles.rightElbow);
-    if (elbowDiff > 15) {
-      score -= Math.min(10, elbowDiff * 0.4);
-      issues.push({ joint: "elbows", status: "moderate", message: "Keep arms even" });
+    // Symmetry check — only meaningful when BOTH sides are reliable.
+    if (leftElbowOk && rightElbowOk) {
+      const elbowDiff = Math.abs(angles.leftElbow - angles.rightElbow);
+      if (elbowDiff > 15) {
+        score -= Math.min(10, elbowDiff * 0.4);
+        issues.push({ joint: "elbows", status: "moderate", message: "Keep arms even" });
+      }
     }
 
     return { score: clampScore(score), issues };
@@ -85,18 +110,31 @@ export const pushupConfig: ExerciseConfig = {
 
   getCoachingCues(angles: Record<string, number>, landmarks: Landmark[], phase: string): string[] {
     const cues: string[] = [];
-    const avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
 
-    if (phase === "bottom" && avgElbow > 125) {
+    const leftElbowOk = allTrusted(landmarks, [L.LEFT_SHOULDER, L.LEFT_ELBOW, L.LEFT_WRIST]);
+    const rightElbowOk = allTrusted(landmarks, [L.RIGHT_SHOULDER, L.RIGHT_ELBOW, L.RIGHT_WRIST]);
+    let avgElbow = NaN;
+    if (leftElbowOk && rightElbowOk) avgElbow = (angles.leftElbow + angles.rightElbow) / 2;
+    else if (leftElbowOk) avgElbow = angles.leftElbow;
+    else if (rightElbowOk) avgElbow = angles.rightElbow;
+
+    if (isFinite(avgElbow) && phase === "bottom" && avgElbow > 125) {
       cues.push("Lower your chest more");
     }
 
-    const bodyAngle = calculateAngle(landmarks[L.LEFT_SHOULDER], landmarks[L.LEFT_HIP], landmarks[L.LEFT_ANKLE]);
-    if (bodyAngle < 160) {
-      cues.push("Keep body straight");
+    const side = bestSide(
+      landmarks,
+      [L.LEFT_SHOULDER, L.LEFT_HIP, L.LEFT_ANKLE],
+      [L.RIGHT_SHOULDER, L.RIGHT_HIP, L.RIGHT_ANKLE],
+    );
+    if (side) {
+      const bodyAngle = safeAngle(landmarks, side[0], side[1], side[2]);
+      if (isFinite(bodyAngle) && bodyAngle < 160) {
+        cues.push("Keep body straight");
+      }
     }
 
-    if (phase === "top" && avgElbow > 150) {
+    if (isFinite(avgElbow) && phase === "top" && avgElbow > 150) {
       cues.push("Good lockout!");
     }
 
