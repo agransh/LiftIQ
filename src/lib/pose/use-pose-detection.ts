@@ -8,6 +8,11 @@ import "@/lib/pose/mediapipe-console-filter";
 
 interface UsePoseDetectionOptions {
   onFrame?: (landmarks: Landmark[]) => void;
+  /**
+   * Returns colors for specific joint indices (used by the live overlay to tint
+   * targeted/issue joints). Called on every redraw so colors stay live with state.
+   */
+  getJointColors?: (landmarks: Landmark[]) => Map<number, string> | undefined;
   enabled?: boolean;
   facingMode?: "user" | "environment";
 }
@@ -17,7 +22,12 @@ function isMobileDevice(): boolean {
   return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768;
 }
 
-export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" }: UsePoseDetectionOptions = {}) {
+export function usePoseDetection({
+  onFrame,
+  getJointColors,
+  enabled = true,
+  facingMode = "user",
+}: UsePoseDetectionOptions = {}) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animFrameRef = useRef<number>(0);
@@ -27,8 +37,15 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
   const modelReadyRef = useRef<boolean>(false);
   const [status, setStatus] = useState<PoseDetectionStatus>("loading");
   const [landmarks, setLandmarks] = useState<Landmark[] | null>(null);
+  // Refs are kept fresh during render so the rAF loop always sees the latest
+  // callback identity without having to invalidate `detect`.
   const onFrameRef = useRef(onFrame);
+  const getJointColorsRef = useRef(getJointColors);
   onFrameRef.current = onFrame;
+  getJointColorsRef.current = getJointColors;
+  // Tracks how many consecutive detection frames returned no pose. We use this
+  // to decide when to clear the overlay so a stale skeleton can never linger.
+  const noPoseFramesRef = useRef(0);
 
   const initCamera = useCallback(async (facing: "user" | "environment") => {
     if (videoRef.current?.srcObject) {
@@ -122,18 +139,37 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
 
   /**
    * Pure draw routine — paints a polished 33-joint skeleton onto any 2D context.
-   * Used by both the live overlay canvas and the offscreen recording compositor.
+   *
+   * Coordinates are mapped through an object-cover transform so the skeleton
+   * stays visually attached to the body inside the displayed video box, even
+   * when the source video aspect ratio differs from the box aspect ratio.
+   *
+   * `boxW`/`boxH`  — the canvas drawing area in *its own* pixel space.
+   * `srcW`/`srcH`  — the source frame the landmarks were normalized against.
    */
   const drawSkeletonToCtx = useCallback(
     (
       ctx: CanvasRenderingContext2D,
-      width: number,
-      height: number,
+      boxW: number,
+      boxH: number,
+      srcW: number,
+      srcH: number,
       landmarks: Landmark[],
       jointColors?: Map<number, string>,
       opts?: { clear?: boolean },
     ) => {
-      if (opts?.clear !== false) ctx.clearRect(0, 0, width, height);
+      if (opts?.clear !== false) ctx.clearRect(0, 0, boxW, boxH);
+      if (boxW <= 0 || boxH <= 0 || srcW <= 0 || srcH <= 0) return;
+
+      // object-cover transform: scale so the source fills the box (cropping the
+      // overflow), centered.
+      const scale = Math.max(boxW / srcW, boxH / srcH);
+      const drawnW = srcW * scale;
+      const drawnH = srcH * scale;
+      const ox = (boxW - drawnW) / 2;
+      const oy = (boxH - drawnH) / 2;
+      const projX = (nx: number) => ox + nx * drawnW;
+      const projY = (ny: number) => oy + ny * drawnH;
 
       const mobile = isMobileDevice();
       const lineWidth = mobile ? 2.5 : 3.5;
@@ -152,8 +188,8 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
         const b = landmarks[end];
         if (a && b && (a.visibility ?? 1) > 0.5 && (b.visibility ?? 1) > 0.5) {
           ctx.beginPath();
-          ctx.moveTo(a.x * width, a.y * height);
-          ctx.lineTo(b.x * width, b.y * height);
+          ctx.moveTo(projX(a.x), projY(a.y));
+          ctx.lineTo(projX(b.x), projY(b.y));
           ctx.stroke();
         }
       }
@@ -164,14 +200,13 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
         const lm = landmarks[i];
         if ((lm.visibility ?? 1) < 0.5) continue;
 
-        const x = lm.x * width;
-        const y = lm.y * height;
+        const x = projX(lm.x);
+        const y = projY(lm.y);
         const overrideColor = jointColors?.get(i);
         const isTarget = jointColors?.has(i) ?? false;
         const color = overrideColor || "#00ffaa";
         const radius = isTarget ? targetRadius : baseRadius;
 
-        // Soft outer halo
         ctx.save();
         ctx.shadowColor = color;
         ctx.shadowBlur = isTarget ? (mobile ? 12 : 16) : mobile ? 6 : 9;
@@ -181,13 +216,11 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
         ctx.fill();
         ctx.restore();
 
-        // Inner white pip — gives every joint a polished readable center
         ctx.fillStyle = "rgba(255,255,255,0.85)";
         ctx.beginPath();
         ctx.arc(x, y, Math.max(1, radius * 0.35), 0, 2 * Math.PI);
         ctx.fill();
 
-        // Pulsing ring for issue / target joints
         if (isTarget) {
           ctx.beginPath();
           ctx.arc(x, y, radius + 2.5, 0, 2 * Math.PI);
@@ -200,8 +233,13 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
     [],
   );
 
-  const drawSkeleton = useCallback(
-    (landmarks: Landmark[], jointColors?: Map<number, string>) => {
+  /**
+   * Sync the live overlay canvas to its displayed CSS box and (re)paint the
+   * skeleton. Call this on every detection frame so the overlay can never lag
+   * behind the user's movement. Pass `null` landmarks to clear without drawing.
+   */
+  const renderLiveSkeleton = useCallback(
+    (landmarks: Landmark[] | null, jointColors?: Map<number, string>) => {
       const canvas = canvasRef.current;
       const video = videoRef.current;
       if (!canvas || !video) return;
@@ -209,14 +247,45 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
 
-      if (canvas.width !== video.videoWidth || canvas.height !== video.videoHeight) {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-      }
+      // Match the canvas's internal pixel buffer to its displayed CSS size, at
+      // device pixel ratio. This keeps the skeleton crisp AND ensures the
+      // drawing area has the same aspect ratio as the on-screen video box —
+      // the prerequisite for landmarks landing on the correct body parts.
+      const rect = canvas.getBoundingClientRect();
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      const targetW = Math.max(1, Math.round(rect.width * dpr));
+      const targetH = Math.max(1, Math.round(rect.height * dpr));
+      if (canvas.width !== targetW) canvas.width = targetW;
+      if (canvas.height !== targetH) canvas.height = targetH;
 
-      drawSkeletonToCtx(ctx, canvas.width, canvas.height, landmarks, jointColors);
+      const srcW = video.videoWidth || targetW;
+      const srcH = video.videoHeight || targetH;
+
+      // Always clear before drawing so a previous frame's skeleton can never
+      // linger and create the illusion of a "frozen" overlay.
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!landmarks || landmarks.length === 0) return;
+
+      drawSkeletonToCtx(
+        ctx,
+        canvas.width,
+        canvas.height,
+        srcW,
+        srcH,
+        landmarks,
+        jointColors,
+        { clear: false },
+      );
     },
     [drawSkeletonToCtx],
+  );
+
+  // Public wrapper — kept for legacy callers (e.g. the recording compositor).
+  const drawSkeleton = useCallback(
+    (landmarks: Landmark[], jointColors?: Map<number, string>) => {
+      renderLiveSkeleton(landmarks, jointColors);
+    },
+    [renderLiveSkeleton],
   );
 
   const detect = useCallback(() => {
@@ -244,16 +313,34 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
 
     try {
       const result = poseLandmarker.detectForVideo(video, now);
-      if (result?.landmarks && result.landmarks.length > 0) {
-        const lms: Landmark[] = result.landmarks[0].map((l) => ({
+      const raw = result?.landmarks?.[0];
+      if (raw && raw.length > 0) {
+        const lms: Landmark[] = raw.map((l) => ({
           x: l.x,
           y: l.y,
           z: l.z,
           visibility: l.visibility,
         }));
+        noPoseFramesRef.current = 0;
         setLandmarks(lms);
         setStatus("detecting");
+
+        // Notify the consumer FIRST so any state-driven joint colors (e.g.
+        // form issues) are computed BEFORE we paint this frame.
         onFrameRef.current?.(lms);
+
+        // Then paint the live overlay using the freshest landmarks + colors.
+        // This is the single source of truth for the on-screen skeleton, so it
+        // can never get stuck on a stale frame.
+        const colors = getJointColorsRef.current?.(lms);
+        renderLiveSkeleton(lms, colors);
+      } else {
+        // No pose this frame — bump the miss counter and clear the overlay
+        // after a brief grace period so the skeleton doesn't appear frozen.
+        noPoseFramesRef.current += 1;
+        if (noPoseFramesRef.current >= 3) {
+          renderLiveSkeleton(null);
+        }
       }
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : String(e);
@@ -263,7 +350,7 @@ export function usePoseDetection({ onFrame, enabled = true, facingMode = "user" 
     }
 
     animFrameRef.current = requestAnimationFrame(detect);
-  }, []);
+  }, [renderLiveSkeleton]);
 
   // Initial mount: start camera + load pose model
   useEffect(() => {

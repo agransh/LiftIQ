@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { usePoseDetection } from "@/lib/pose/use-pose-detection";
 import { useWorkoutStore } from "@/lib/store";
 import { RepDetector } from "@/lib/scoring/rep-detector";
@@ -183,11 +183,12 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
     }
   }, [isWorkoutActive, isPaused, settings.voiceEnabled]);
 
-  const drawSkeletonRef = useRef<
-    (landmarks: Landmark[], jointColors?: Map<number, string>) => void
-  >(() => {});
+  // Latest joint-color map. Updated whenever the rep detector produces fresh
+  // issues, and read by the pose hook on every render so the live overlay
+  // shows the correct tint without us having to re-trigger the redraw.
+  const liveJointColorsRef = useRef<Map<number, string> | undefined>(undefined);
 
-  const getJointColors = useCallback(
+  const computeJointColors = useCallback(
     (issues: JointFeedback[], config: ReturnType<typeof getExercise>) => {
       const colors = new Map<number, string>();
       if (!config) return colors;
@@ -236,11 +237,14 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
         (idx) => landmarks[idx] && (landmarks[idx].visibility ?? 0) >= MIN_VIS
       ).length;
 
+      // The pose hook owns the live overlay redraw — `handleFrame` only feeds
+      // back state (scores, reps, joint tints). This keeps the skeleton
+      // updating every detection frame, even when state-driven branches below
+      // would otherwise early-return.
+
       if (isFormChecking) {
         const config = getExercise(exerciseRef.current);
         if (!config) return;
-
-        drawSkeletonRef.current(landmarks);
 
         // 1) Check exercise-specific joints are visible
         const requiredJoints = config.targetJoints;
@@ -335,10 +339,11 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
         return;
       }
 
-      // Always show the live skeleton when pose is detected — even before the
-      // workout starts and while ghost coach is on, so the user can compare.
+      // Outside form-check & workout, there are no joint tints to compute —
+      // the live overlay will already have been (re)drawn by the pose hook
+      // using the freshest landmarks.
       if (!isWorkoutActive || isPaused || !repDetectorRef.current) {
-        if (coreVisible >= 3) drawSkeletonRef.current(landmarks);
+        liveJointColorsRef.current = undefined;
         return;
       }
       if (coreVisible < 4) return;
@@ -366,8 +371,9 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
       }
 
       const config = getExercise(exerciseRef.current);
-      const jointColors = getJointColors(result.issues, config);
-      drawSkeletonRef.current(landmarks, jointColors);
+      // Stash the colors so the pose hook applies them on this same frame's
+      // redraw (it reads `liveJointColorsRef` synchronously after `onFrame`).
+      liveJointColorsRef.current = computeJointColors(result.issues, config);
     },
     [
       isWorkoutActive,
@@ -381,12 +387,13 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
       setCurrentIssues,
       addRepResult,
       settings.voiceEnabled,
-      getJointColors,
+      computeJointColors,
     ]
   );
 
-  const { videoRef, canvasRef, status, drawSkeleton } = usePoseDetection({
+  const { videoRef, canvasRef, status } = usePoseDetection({
     onFrame: handleFrame,
+    getJointColors: () => liveJointColorsRef.current,
     enabled: true,
     facingMode: cameraFacing,
   });
@@ -395,10 +402,6 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
   useEffect(() => {
     liveCanvasRef.current = canvasRef.current;
   });
-
-  useLayoutEffect(() => {
-    drawSkeletonRef.current = drawSkeleton;
-  }, [drawSkeleton]);
 
   useEffect(() => {
     videoElRef.current = videoRef.current;
