@@ -391,7 +391,7 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
     ]
   );
 
-  const { videoRef, canvasRef, status } = usePoseDetection({
+  const { videoRef, canvasRef, status, landmarks: liveLandmarks } = usePoseDetection({
     onFrame: handleFrame,
     getJointColors: () => liveJointColorsRef.current,
     enabled: true,
@@ -552,10 +552,12 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
         style={{ transform: cameraFacing === "user" ? "scaleX(-1)" : "none" }}
       />
 
-      {/* Ghost coach overlay */}
+      {/* Ghost coach overlay — live-synced to the user's pose & pace */}
       {ghostCoachEnabled && selectedExercise && onDismissGhostCoach && (
         <GhostCoachOverlay
           exerciseId={selectedExercise}
+          landmarks={liveLandmarks}
+          mirror={cameraFacing === "user"}
           onDismiss={onDismissGhostCoach}
           canvasRefExternal={ghostCanvasRef}
         />
