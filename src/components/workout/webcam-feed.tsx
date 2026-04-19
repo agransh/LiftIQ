@@ -5,8 +5,8 @@ import { usePoseDetection } from "@/lib/pose/use-pose-detection";
 import { useWorkoutStore } from "@/lib/store";
 import { RepDetector } from "@/lib/scoring/rep-detector";
 import { getExercise } from "@/lib/exercises";
-import { getCommonAngles } from "@/lib/pose/angle-utils";
 import { Landmark, JointFeedback } from "@/types";
+import { validateStartPosition } from "@/lib/exercises/start-validators";
 import { getVoiceManager, classifyCuePriority } from "@/lib/ai/voice";
 import { Loader2, Camera, CameraOff, SwitchCamera, CheckCircle2, ScanLine } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -246,67 +246,39 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
         const config = getExercise(exerciseRef.current);
         if (!config) return;
 
-        // 1) Check exercise-specific joints are visible
-        const requiredJoints = config.targetJoints;
-        const jointVisible = requiredJoints.filter(
-          (idx) => landmarks[idx] && (landmarks[idx].visibility ?? 0) >= MIN_VIS
-        ).length;
-        const jointRatio = requiredJoints.length > 0 ? jointVisible / requiredJoints.length : 0;
-
+        // ---- 1) Framing check (cheap, kinematic-free) -----------------
+        // We need at least the upper body visible to even attempt
+        // pose-family classification; everything else can be advised on.
         const shouldersOk = (landmarks[11]?.visibility ?? 0) >= MIN_VIS
           && (landmarks[12]?.visibility ?? 0) >= MIN_VIS;
-        const anklesOk = (landmarks[27]?.visibility ?? 0) >= 0.4
-          || (landmarks[28]?.visibility ?? 0) >= 0.4;
         const hipsOk = (landmarks[23]?.visibility ?? 0) >= MIN_VIS
           && (landmarks[24]?.visibility ?? 0) >= MIN_VIS;
+        const anklesOk = (landmarks[27]?.visibility ?? 0) >= 0.4
+          || (landmarks[28]?.visibility ?? 0) >= 0.4;
 
-        let bodySpan = -1;
-        if (shouldersOk && anklesOk) {
-          const shoulderY = Math.min(landmarks[11].y, landmarks[12].y);
-          const ankleY = Math.max(landmarks[27].y, landmarks[28].y);
-          bodySpan = ankleY - shoulderY;
-        }
+        let framingHint = "";
+        if (coreVisible < 4) framingHint = "Step fully into the camera view";
+        else if (!shouldersOk || !hipsOk) framingHint = "Make sure your upper body is visible";
+        else if (!anklesOk) framingHint = "Make sure your full body is visible, including your feet";
 
-        const shoulderWidth = shouldersOk
-          ? Math.abs(landmarks[11].x - landmarks[12].x)
-          : 0;
-
-        let hint = "";
-        let bodyOk = false;
-
-        if (coreVisible < 4 || jointRatio < 0.5) {
-          hint = "Step fully into the camera view";
-        } else if (!shouldersOk || !hipsOk) {
-          hint = "Make sure your upper body is visible";
-        } else if (!anklesOk) {
-          hint = shoulderWidth > 0.35
-            ? "You're too close. Move the camera farther away"
-            : "Make sure your full body is visible, including your feet";
-        } else if (bodySpan < 0.2) {
-          hint = "Move closer to the camera";
-        } else if (bodySpan > 0.88 || shoulderWidth > 0.4) {
-          hint = "Move farther from the camera";
-        } else {
-          bodyOk = true;
-        }
-
-        if (!bodyOk) {
+        if (framingHint) {
           formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 3);
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
-          setFormCheckHint(hint);
-          if (hint !== lastHintRef.current) {
-            lastHintRef.current = hint;
-            speakCue(hint);
+          setFormCheckHint(framingHint);
+          if (framingHint !== lastHintRef.current) {
+            lastHintRef.current = framingHint;
+            speakCue(framingHint);
           }
           return;
         }
 
-        // 4) Body is positioned well — now check starting pose
-        const angles = getCommonAngles(landmarks);
-        const detectedPhase = config.detectPhase(angles, landmarks);
-        const startPhase = config.phases[0];
+        // ---- 2) Exercise-specific start-pose validation ----------------
+        // Pose-family classifier + per-exercise rules. This is the gate
+        // that prevents "selected push-up but standing/squatting" from
+        // ever advancing into the active workout state.
+        const verdict = validateStartPosition(exerciseRef.current, landmarks);
 
-        if (detectedPhase === startPhase && jointRatio >= 0.7) {
+        if (verdict.isValid) {
           formCheckFramesRef.current++;
           const holdHint = "Hold your position...";
           setFormCheckHint(holdHint);
@@ -327,13 +299,25 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
             }, 2000);
           }
         } else {
-          formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 2);
+          // Stronger penalty when the pose family is clearly wrong (e.g.
+          // standing while push-up is selected) — that's not a small drift,
+          // it's the wrong exercise. Reset the frame counter outright.
+          const familyMismatch = verdict.detectedFamily !== "unknown"
+            && verdict.reasons.some((r) => /plank|standing upright|seated|on the floor/i.test(r));
+          if (familyMismatch) {
+            formCheckFramesRef.current = 0;
+          } else {
+            formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 2);
+          }
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
-          const posHint = "Get into the starting position";
-          setFormCheckHint(posHint);
-          if (lastHintRef.current !== posHint) {
-            lastHintRef.current = posHint;
-            speakCue(posHint);
+
+          const primary = verdict.reasons[0] ?? "Get into the starting position";
+          const detail = verdict.reasons[1];
+          const hintText = detail ? `${primary} ${detail}` : primary;
+          setFormCheckHint(hintText);
+          if (lastHintRef.current !== hintText) {
+            lastHintRef.current = hintText;
+            speakCue(primary);
           }
         }
         return;
@@ -357,6 +341,16 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
 
       if (result.repCompleted && result.repResult) {
         addRepResult(result.repResult);
+      }
+
+      // Family-mismatch nudge: surface a one-shot cue (don't spam every
+      // frame). Reps are already suppressed by the rep detector.
+      if (result.familyMismatch && lastHintRef.current !== "family-mismatch") {
+        lastHintRef.current = "family-mismatch";
+        setCurrentCues(["Get back into the starting position to continue."]);
+        speakCue("Get back into the starting position to continue.");
+      } else if (!result.familyMismatch && lastHintRef.current === "family-mismatch") {
+        lastHintRef.current = "";
       }
 
       if (settings.voiceEnabled) {
@@ -558,6 +552,7 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
           exerciseId={selectedExercise}
           landmarks={liveLandmarks}
           mirror={cameraFacing === "user"}
+          compact={mobile}
           onDismiss={onDismissGhostCoach}
           canvasRefExternal={ghostCanvasRef}
         />

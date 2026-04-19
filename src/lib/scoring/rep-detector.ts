@@ -1,11 +1,20 @@
 import { ExerciseConfig, Landmark, RepResult, JointFeedback, RepCycleConfig } from "@/types";
 import { getCommonAngles } from "@/lib/pose/angle-utils";
+import { classifyPoseFamily, PoseFamily } from "@/lib/pose/pose-family";
+import { REQUIRED_FAMILY } from "@/lib/exercises/start-validators";
 
 const ANGLE_SMOOTHING_WINDOW = 5;
 const HYSTERESIS_BUFFER = 8;
 /** Phase-based rep path (exercises without repCycle): stability frames + cooldown */
 const PHASE_STABILITY_FRAMES = 2;
 const PHASE_REP_COOLDOWN_MS = 280;
+/**
+ * Family-drift guard: how many consecutive frames the user must spend in the
+ * "wrong" pose family before we drop in-flight rep state. Burpee transitions
+ * standing↔plank in a single rep, so this needs to be a real grace window
+ * (~0.6s at 30 fps), not 1–2 frames.
+ */
+const FAMILY_DRIFT_FRAMES = 18;
 
 type CycleState = "idle" | "descending" | "at_depth" | "returning";
 
@@ -31,11 +40,19 @@ export class RepDetector {
   private reachedDeepPhase = false;
   private deepFrameCount = 0;
 
+  /** Required pose family for this exercise (e.g. pushup → "floor_plank"). */
+  private requiredFamily: PoseFamily | null = null;
+  /** Consecutive frames the user has been in the "wrong" pose family. */
+  private familyDriftFrames = 0;
+  /** True once the family-drift guard has tripped this set. */
+  private familyMismatch = false;
+
   constructor(config: ExerciseConfig) {
     this.config = config;
     if (config.repCycle) {
       this.isInverted = config.repCycle.startThreshold < config.repCycle.depthThreshold;
     }
+    this.requiredFamily = REQUIRED_FAMILY[config.id] ?? null;
   }
 
   reset() {
@@ -54,6 +71,8 @@ export class RepDetector {
     this.inRep = false;
     this.reachedDeepPhase = false;
     this.deepFrameCount = 0;
+    this.familyDriftFrames = 0;
+    this.familyMismatch = false;
   }
 
   private smoothAngles(angles: Record<string, number>): Record<string, number> {
@@ -250,6 +269,7 @@ export class RepDetector {
     repCompleted: boolean;
     repResult?: RepResult;
     repCount: number;
+    familyMismatch: boolean;
   } {
     const rawAngles = getCommonAngles(landmarks);
     const smoothedAngles = this.smoothAngles(rawAngles);
@@ -263,15 +283,48 @@ export class RepDetector {
     this.currentIssues = [...this.currentIssues, ...issues];
     this.scoreAccumulator.push(score);
 
+    // ---- Family-drift guard --------------------------------------------
+    // If the user has clearly left this exercise's pose family for several
+    // frames in a row (e.g. they were doing push-ups and stood up to walk
+    // away) we drop in-flight cycle state so a noisy joint angle on the way
+    // back can't trigger a phantom rep. Burpees toggle families inside a
+    // single rep, so we use a long grace window before tripping.
+    let familyMismatch = false;
+    if (this.requiredFamily) {
+      const fam = classifyPoseFamily(landmarks);
+      const wrong =
+        fam.family !== "unknown" &&
+        fam.family !== this.requiredFamily &&
+        // Burpees legitimately pass through "floor_plank" mid-rep — only
+        // flag standing→seated/plank drift, never the in-rep transition.
+        !(this.config.id === "burpee" && fam.family === "floor_plank");
+      if (wrong) {
+        this.familyDriftFrames++;
+        if (this.familyDriftFrames >= FAMILY_DRIFT_FRAMES) {
+          familyMismatch = true;
+          this.familyMismatch = true;
+          this.cycleState = "idle";
+          this.inRep = false;
+          this.reachedDeepPhase = false;
+          this.deepFrameCount = 0;
+        }
+      } else {
+        this.familyDriftFrames = 0;
+        this.familyMismatch = false;
+      }
+    }
+
     let repCompleted = false;
 
-    const cycle = this.config.repCycle;
-    if (cycle) {
-      const rawPrimary = this.getPrimaryAngle(rawAngles, cycle);
-      const smoothedPrimary = this.getPrimaryAngle(smoothedAngles, cycle);
-      repCompleted = this.updateCycleRep(rawPrimary, smoothedPrimary, cycle);
-    } else {
-      repCompleted = this.updatePhaseRep(rawPhase, phase, score);
+    if (!familyMismatch) {
+      const cycle = this.config.repCycle;
+      if (cycle) {
+        const rawPrimary = this.getPrimaryAngle(rawAngles, cycle);
+        const smoothedPrimary = this.getPrimaryAngle(smoothedAngles, cycle);
+        repCompleted = this.updateCycleRep(rawPrimary, smoothedPrimary, cycle);
+      } else {
+        repCompleted = this.updatePhaseRep(rawPhase, phase, score);
+      }
     }
 
     let repResult: RepResult | undefined;
@@ -289,7 +342,16 @@ export class RepDetector {
       this.scoreAccumulator = [];
     }
 
-    return { phase, score, issues, cues, repCompleted, repResult, repCount: this.repCount };
+    return {
+      phase,
+      score,
+      issues,
+      cues,
+      repCompleted,
+      repResult,
+      repCount: this.repCount,
+      familyMismatch: this.familyMismatch,
+    };
   }
 
   private deduplicateIssues(issues: JointFeedback[]): JointFeedback[] {

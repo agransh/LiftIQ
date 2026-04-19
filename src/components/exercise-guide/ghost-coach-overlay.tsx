@@ -20,6 +20,12 @@ interface GhostCoachOverlayProps {
   landmarks: Landmark[] | null;
   /** True when the on-screen video is mirrored (front camera). */
   mirror?: boolean;
+  /**
+   * Compact rendering — thinner bones, no glow, no decorative head ring.
+   * Use on small screens where the full ghost competes with the live overlay
+   * for screen real estate.
+   */
+  compact?: boolean;
   onDismiss: () => void;
   /** Outward ref so the recording compositor can sample this canvas. */
   canvasRefExternal?: RefObject<HTMLCanvasElement | null>;
@@ -211,10 +217,15 @@ export function GhostCoachOverlay({
   exerciseId,
   landmarks,
   mirror = false,
+  compact = false,
   onDismiss,
   canvasRefExternal,
 }: GhostCoachOverlayProps) {
   const guide = getExerciseGuide(exerciseId);
+  const compactRef = useRef(compact);
+  useLayoutEffect(() => {
+    compactRef.current = compact;
+  }, [compact]);
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   // Stash the outward ref in a ref so the callback below isn't a prop closure
@@ -314,6 +325,16 @@ export function GhostCoachOverlay({
     const lms = latestLandmarksRef.current;
     if (!lms || lms.length === 0) return;
 
+    // Don't render junk: if too few core landmarks are well-tracked, leave
+    // the canvas blank rather than show a half-broken ghost. This is
+    // especially important on phones where the overlay competes with the
+    // live skeleton for visual attention.
+    const wellTracked = CORE_LANDMARKS.reduce(
+      (n, idx) => n + (((lms[idx]?.visibility ?? 0) >= VIS_THRESHOLD) ? 1 : 0),
+      0,
+    );
+    if (wellTracked < 5) return;
+
     // We don't have the source video element here — assume the source aspect
     // matches the canvas (it does in practice because the live overlay sets
     // the same CSS box). For mismatched aspects the user-anchor will simply
@@ -412,12 +433,17 @@ export function GhostCoachOverlay({
     const flipX = (x: number) =>
       flipShape ? smoothed.x + smoothed.w - (x - smoothed.x) : x;
 
-    // Bones (cyan glow — looks like a holographic coach)
+    const isCompact = compactRef.current;
+
+    // Bones — full mode: cyan glow holographic look.
+    //         compact:    slim, glow-free strokes for small screens.
     ctx.save();
-    ctx.shadowColor = "rgba(56, 189, 248, 0.55)";
-    ctx.shadowBlur = 12;
-    ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
-    ctx.lineWidth = Math.max(2, smoothed.h * 0.012);
+    if (!isCompact) {
+      ctx.shadowColor = "rgba(56, 189, 248, 0.55)";
+      ctx.shadowBlur = 12;
+    }
+    ctx.strokeStyle = isCompact ? "rgba(56, 189, 248, 0.7)" : "rgba(56, 189, 248, 0.85)";
+    ctx.lineWidth = Math.max(isCompact ? 1.5 : 2, smoothed.h * (isCompact ? 0.008 : 0.012));
     ctx.lineCap = "round";
     for (const [from, to] of variant.connections) {
       const a = pose[from];
@@ -431,29 +457,33 @@ export function GhostCoachOverlay({
     ctx.restore();
 
     // Joints
-    const baseR = Math.max(3, smoothed.h * 0.02);
+    const baseR = Math.max(isCompact ? 2 : 3, smoothed.h * (isCompact ? 0.014 : 0.02));
     for (const [name, p] of Object.entries(pose)) {
       const isHi = variant.highlightJoints.has(name);
       const r = isHi ? baseR * 1.4 : baseR;
       const color = isHi ? "rgba(168, 85, 247, 0.95)" : "rgba(56, 189, 248, 0.95)";
       ctx.save();
-      ctx.shadowColor = color;
-      ctx.shadowBlur = isHi ? 14 : 8;
+      if (!isCompact) {
+        ctx.shadowColor = color;
+        ctx.shadowBlur = isHi ? 14 : 8;
+      }
       ctx.fillStyle = color;
       ctx.beginPath();
       ctx.arc(flipX(projJx(p.x)), projJy(p.y), r, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
-      ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
-      ctx.beginPath();
-      ctx.arc(flipX(projJx(p.x)), projJy(p.y), r * 0.35, 0, Math.PI * 2);
-      ctx.fill();
+      if (!isCompact) {
+        ctx.fillStyle = "rgba(255, 255, 255, 0.85)";
+        ctx.beginPath();
+        ctx.arc(flipX(projJx(p.x)), projJy(p.y), r * 0.35, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
-    // Head circle on top of the head joint (visual polish — matches the
-    // teaching demo's style).
-    if (pose.head) {
+    // Decorative head ring — only in full mode. The compact ghost stays as
+    // close to "highlighted joints" as we can without losing readability.
+    if (!isCompact && pose.head) {
       const headR = Math.max(6, smoothed.h * 0.04);
       ctx.strokeStyle = "rgba(56, 189, 248, 0.7)";
       ctx.lineWidth = Math.max(1.5, smoothed.h * 0.01);
