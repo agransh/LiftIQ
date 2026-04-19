@@ -25,6 +25,16 @@ export interface ExerciseVisualGuide {
   steps: { title: string; detail: string }[];
   commonMistakes: { mistake: string; fix: string }[];
   coachingCues: string[];
+  /**
+   * Optional front-facing variant. When the user is detected to be facing the
+   * camera, the live ghost coach uses this set instead of the default
+   * (side-facing) keyframes. Exercises where front-view doesn't communicate
+   * form (anything horizontal — push-ups, planks, etc.) leave this undefined
+   * and the ghost falls back to the side view.
+   */
+  frontConnections?: [string, string][];
+  frontKeyframes?: PoseFrame[];
+  frontHighlightJoints?: string[];
 }
 
 const SIDE_CONNECTIONS: [string, string][] = [
@@ -37,6 +47,39 @@ const SIDE_CONNECTIONS: [string, string][] = [
   ["hip", "backKnee"],
   ["backKnee", "backAnkle"],
 ];
+
+const FRONT_CONNECTIONS: [string, string][] = [
+  ["head", "leftShoulder"],
+  ["head", "rightShoulder"],
+  ["leftShoulder", "rightShoulder"],
+  ["leftShoulder", "leftElbow"],
+  ["leftElbow", "leftHand"],
+  ["rightShoulder", "rightElbow"],
+  ["rightElbow", "rightHand"],
+  ["leftShoulder", "leftHip"],
+  ["rightShoulder", "rightHip"],
+  ["leftHip", "rightHip"],
+  ["leftHip", "leftKnee"],
+  ["leftKnee", "leftAnkle"],
+  ["rightHip", "rightKnee"],
+  ["rightKnee", "rightAnkle"],
+];
+
+const FRONT_STANDING: PoseFrame = {
+  head:          { x: 150, y: 30 },
+  leftShoulder:  { x: 128, y: 72 },
+  rightShoulder: { x: 172, y: 72 },
+  leftElbow:     { x: 118, y: 108 },
+  rightElbow:    { x: 182, y: 108 },
+  leftHand:      { x: 116, y: 142 },
+  rightHand:     { x: 184, y: 142 },
+  leftHip:       { x: 136, y: 142 },
+  rightHip:      { x: 164, y: 142 },
+  leftKnee:      { x: 134, y: 200 },
+  rightKnee:     { x: 166, y: 200 },
+  leftAnkle:     { x: 134, y: 252 },
+  rightAnkle:    { x: 166, y: 252 },
+};
 
 const STANDING: PoseFrame = {
   head: { x: 150, y: 30 },
@@ -112,6 +155,58 @@ const squatGuide: ExerciseVisualGuide = {
     { mistake: "Not hitting depth", fix: "Work on ankle and hip mobility. Use a slight elevation under heels if needed." },
   ],
   coachingCues: ["Sit back, not down", "Chest proud, eyes forward", "Drive your knees out", "Push the earth away"],
+
+  // Front-facing variant — used when the user faces the camera.
+  frontConnections: FRONT_CONNECTIONS,
+  frontHighlightJoints: ["leftHip", "rightHip", "leftKnee", "rightKnee"],
+  frontKeyframes: [
+    FRONT_STANDING,
+    {
+      head:          { x: 150, y: 50 },
+      leftShoulder:  { x: 124, y: 92 },
+      rightShoulder: { x: 176, y: 92 },
+      leftElbow:     { x: 108, y: 124 },
+      rightElbow:    { x: 192, y: 124 },
+      leftHand:      { x: 118, y: 148 },
+      rightHand:     { x: 182, y: 148 },
+      leftHip:       { x: 132, y: 162 },
+      rightHip:      { x: 168, y: 162 },
+      leftKnee:      { x: 118, y: 200 },
+      rightKnee:     { x: 182, y: 200 },
+      leftAnkle:     { x: 130, y: 252 },
+      rightAnkle:    { x: 170, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 78 },
+      leftShoulder:  { x: 120, y: 118 },
+      rightShoulder: { x: 180, y: 118 },
+      leftElbow:     { x: 105, y: 140 },
+      rightElbow:    { x: 195, y: 140 },
+      leftHand:      { x: 130, y: 154 },
+      rightHand:     { x: 170, y: 154 },
+      leftHip:       { x: 130, y: 188 },
+      rightHip:      { x: 170, y: 188 },
+      leftKnee:      { x: 102, y: 208 },
+      rightKnee:     { x: 198, y: 208 },
+      leftAnkle:     { x: 128, y: 252 },
+      rightAnkle:    { x: 172, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 50 },
+      leftShoulder:  { x: 124, y: 92 },
+      rightShoulder: { x: 176, y: 92 },
+      leftElbow:     { x: 108, y: 124 },
+      rightElbow:    { x: 192, y: 124 },
+      leftHand:      { x: 118, y: 148 },
+      rightHand:     { x: 182, y: 148 },
+      leftHip:       { x: 132, y: 162 },
+      rightHip:      { x: 168, y: 162 },
+      leftKnee:      { x: 118, y: 200 },
+      rightKnee:     { x: 182, y: 200 },
+      leftAnkle:     { x: 130, y: 252 },
+      rightAnkle:    { x: 170, y: 252 },
+    },
+  ],
 };
 
 // ── LUNGE ────────────────────────────────────────────────────
@@ -360,6 +455,72 @@ const jumpingJackGuide: ExerciseVisualGuide = {
     { mistake: "Heavy landings", fix: "Land softly on the balls of your feet, knees slightly bent." },
   ],
   coachingCues: ["Arms and legs in sync", "Land softly — bend your knees", "Full arm sweep overhead", "Stay light on your feet"],
+
+  // Front-facing variant — the natural view for jumping jacks.
+  frontConnections: FRONT_CONNECTIONS,
+  frontHighlightJoints: ["leftHand", "rightHand", "leftAnkle", "rightAnkle"],
+  frontKeyframes: [
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 132, y: 72 },
+      rightShoulder: { x: 168, y: 72 },
+      leftElbow:     { x: 124, y: 108 },
+      rightElbow:    { x: 176, y: 108 },
+      leftHand:      { x: 122, y: 142 },
+      rightHand:     { x: 178, y: 142 },
+      leftHip:       { x: 140, y: 142 },
+      rightHip:      { x: 160, y: 142 },
+      leftKnee:      { x: 142, y: 200 },
+      rightKnee:     { x: 158, y: 200 },
+      leftAnkle:     { x: 144, y: 252 },
+      rightAnkle:    { x: 156, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 28 },
+      leftShoulder:  { x: 130, y: 70 },
+      rightShoulder: { x: 170, y: 70 },
+      leftElbow:     { x: 100, y: 50 },
+      rightElbow:    { x: 200, y: 50 },
+      leftHand:      { x: 78,  y: 18 },
+      rightHand:     { x: 222, y: 18 },
+      leftHip:       { x: 138, y: 142 },
+      rightHip:      { x: 162, y: 142 },
+      leftKnee:      { x: 108, y: 198 },
+      rightKnee:     { x: 192, y: 198 },
+      leftAnkle:     { x: 92,  y: 252 },
+      rightAnkle:    { x: 208, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 132, y: 72 },
+      rightShoulder: { x: 168, y: 72 },
+      leftElbow:     { x: 124, y: 108 },
+      rightElbow:    { x: 176, y: 108 },
+      leftHand:      { x: 122, y: 142 },
+      rightHand:     { x: 178, y: 142 },
+      leftHip:       { x: 140, y: 142 },
+      rightHip:      { x: 160, y: 142 },
+      leftKnee:      { x: 142, y: 200 },
+      rightKnee:     { x: 158, y: 200 },
+      leftAnkle:     { x: 144, y: 252 },
+      rightAnkle:    { x: 156, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 28 },
+      leftShoulder:  { x: 130, y: 70 },
+      rightShoulder: { x: 170, y: 70 },
+      leftElbow:     { x: 100, y: 50 },
+      rightElbow:    { x: 200, y: 50 },
+      leftHand:      { x: 78,  y: 18 },
+      rightHand:     { x: 222, y: 18 },
+      leftHip:       { x: 138, y: 142 },
+      rightHip:      { x: 162, y: 142 },
+      leftKnee:      { x: 108, y: 198 },
+      rightKnee:     { x: 192, y: 198 },
+      leftAnkle:     { x: 92,  y: 252 },
+      rightAnkle:    { x: 208, y: 252 },
+    },
+  ],
 };
 
 // ── MOUNTAIN CLIMBER ─────────────────────────────────────────
@@ -458,6 +619,72 @@ const shoulderPressGuide: ExerciseVisualGuide = {
     { mistake: "Incomplete lockout", fix: "Fully extend your arms at the top for maximum shoulder engagement." },
   ],
   coachingCues: ["Straight up, not forward", "Core tight — no rib flare", "Lock out fully at the top"],
+
+  // Front-facing variant.
+  frontConnections: FRONT_CONNECTIONS,
+  frontHighlightJoints: ["leftShoulder", "rightShoulder", "leftElbow", "rightElbow"],
+  frontKeyframes: [
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 102, y: 92 },
+      rightElbow:    { x: 198, y: 92 },
+      leftHand:      { x: 110, y: 60 },
+      rightHand:     { x: 190, y: 60 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 110, y: 60 },
+      rightElbow:    { x: 190, y: 60 },
+      leftHand:      { x: 122, y: 28 },
+      rightHand:     { x: 178, y: 28 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 32 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 124, y: 40 },
+      rightElbow:    { x: 176, y: 40 },
+      leftHand:      { x: 138, y: 8 },
+      rightHand:     { x: 162, y: 8 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 110, y: 60 },
+      rightElbow:    { x: 190, y: 60 },
+      leftHand:      { x: 122, y: 28 },
+      rightHand:     { x: 178, y: 28 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+  ],
 };
 
 // ── BICEP CURL ───────────────────────────────────────────────
@@ -511,6 +738,72 @@ const bicepCurlGuide: ExerciseVisualGuide = {
     { mistake: "Rushing the negative", fix: "Lower the weight slowly for 2–3 seconds — that's where growth happens." },
   ],
   coachingCues: ["Pin your elbows — only the forearm moves", "Squeeze hard at the top", "Slow and controlled on the way down"],
+
+  // Front-facing variant.
+  frontConnections: FRONT_CONNECTIONS,
+  frontHighlightJoints: ["leftElbow", "rightElbow", "leftShoulder", "rightShoulder"],
+  frontKeyframes: [
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 122, y: 108 },
+      rightElbow:    { x: 178, y: 108 },
+      leftHand:      { x: 120, y: 142 },
+      rightHand:     { x: 180, y: 142 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 122, y: 108 },
+      rightElbow:    { x: 178, y: 108 },
+      leftHand:      { x: 132, y: 92 },
+      rightHand:     { x: 168, y: 92 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 122, y: 108 },
+      rightElbow:    { x: 178, y: 108 },
+      leftHand:      { x: 138, y: 72 },
+      rightHand:     { x: 162, y: 72 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+    {
+      head:          { x: 150, y: 30 },
+      leftShoulder:  { x: 124, y: 72 },
+      rightShoulder: { x: 176, y: 72 },
+      leftElbow:     { x: 122, y: 108 },
+      rightElbow:    { x: 178, y: 108 },
+      leftHand:      { x: 132, y: 92 },
+      rightHand:     { x: 168, y: 92 },
+      leftHip:       { x: 134, y: 142 },
+      rightHip:      { x: 166, y: 142 },
+      leftKnee:      { x: 134, y: 200 },
+      rightKnee:     { x: 166, y: 200 },
+      leftAnkle:     { x: 134, y: 252 },
+      rightAnkle:    { x: 166, y: 252 },
+    },
+  ],
 };
 
 // ── BURPEE ───────────────────────────────────────────────────

@@ -57,7 +57,21 @@ interface UserAnchor {
   box: { x: number; y: number; w: number; h: number };
   /** -1 = body angled toward the user's left, +1 = right (from shoulder z-depth). */
   facing: -1 | 1;
+  /**
+   * Horizontal distance between the shoulders in normalized [0,1] coords.
+   * Wide → user is facing the camera. Narrow → user is side-on.
+   * `null` if shoulders aren't reliably tracked this frame.
+   */
+  shoulderSpread: number | null;
 }
+
+type Orientation = "front" | "side";
+
+// Shoulder-spread thresholds for orientation classification (normalized coords).
+// We use hysteresis so the ghost doesn't ping-pong between views on borderline
+// frames — once committed, the user has to clearly turn before we switch.
+const FRONT_ENTER = 0.13;
+const SIDE_ENTER = 0.06;
 
 function lerpFrame(a: PoseFrame, b: PoseFrame, t: number): PoseFrame {
   const out: PoseFrame = {};
@@ -143,13 +157,23 @@ function computeUserAnchor(
   // Pose landmarker reports z relative to the hip; positive z = away from the
   // camera. If the right shoulder is further away, the user is angled toward
   // their left, so they're "facing right" in the frame.
-  const lz = landmarks[L.LEFT_SHOULDER]?.z ?? 0;
-  const rz = landmarks[L.RIGHT_SHOULDER]?.z ?? 0;
+  const ls = landmarks[L.LEFT_SHOULDER];
+  const rs = landmarks[L.RIGHT_SHOULDER];
+  const lz = ls?.z ?? 0;
+  const rz = rs?.z ?? 0;
   const facing: -1 | 1 = rz > lz ? 1 : -1;
+
+  // Shoulder spread is only meaningful when both shoulders are well tracked —
+  // otherwise we'd flip orientation every time one shoulder hides.
+  const shoulderSpread =
+    ls && rs && (ls.visibility ?? 0) >= 0.5 && (rs.visibility ?? 0) >= 0.5
+      ? Math.abs(ls.x - rs.x)
+      : null;
 
   return {
     box: { x: px, y: py, w: pw, h: ph },
     facing,
+    shoulderSpread,
   };
 }
 
@@ -207,30 +231,51 @@ export function GhostCoachOverlay({
     if (ext) ext.current = node;
   }, []);
 
-  // Pre-computed once per exercise so the per-frame draw stays cheap.
+  // Pre-computed once per exercise so the per-frame draw stays cheap. Both
+  // side and front variants are baked here; the rAF loop just picks one.
   const guideMeta = useMemo(() => {
     if (!guide) return null;
-    const bottomIdx = pickBottomFrameIndex(guide.keyframes);
-    const topFrame = guide.keyframes[0];
-    const bottomFrame = guide.keyframes[bottomIdx];
-    // Pose extent that covers both keyframes — used to size + center the
-    // ghost so it doesn't pop in/out as the rep progresses.
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const frame of [topFrame, bottomFrame]) {
-      for (const k of Object.keys(frame)) {
-        const p = frame[k];
-        if (p.x < minX) minX = p.x;
-        if (p.x > maxX) maxX = p.x;
-        if (p.y < minY) minY = p.y;
-        if (p.y > maxY) maxY = p.y;
+
+    const buildVariant = (
+      frames: PoseFrame[],
+      connections: [string, string][],
+      highlightJoints: string[],
+    ) => {
+      const bottomIdx = pickBottomFrameIndex(frames);
+      const topFrame = frames[0];
+      const bottomFrame = frames[bottomIdx];
+      let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+      for (const frame of [topFrame, bottomFrame]) {
+        for (const k of Object.keys(frame)) {
+          const p = frame[k];
+          if (p.x < minX) minX = p.x;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.y > maxY) maxY = p.y;
+        }
       }
-    }
+      return {
+        topFrame,
+        bottomFrame,
+        extent: { minX, maxX, minY, maxY } as PoseExtent,
+        connections,
+        highlightJoints: new Set(highlightJoints),
+      };
+    };
+
+    const side = buildVariant(guide.keyframes, guide.connections, guide.highlightJoints);
+    const front = guide.frontKeyframes && guide.frontConnections
+      ? buildVariant(
+          guide.frontKeyframes,
+          guide.frontConnections,
+          guide.frontHighlightJoints ?? guide.highlightJoints,
+        )
+      : null;
+
     return {
-      topFrame,
-      bottomFrame,
-      extent: { minX, maxX, minY, maxY } as PoseExtent,
-      connections: guide.connections,
-      highlightJoints: new Set(guide.highlightJoints),
+      side,
+      front,
+      defaultOrientation: guide.recommendedView as Orientation,
     };
   }, [guide]);
 
@@ -239,6 +284,8 @@ export function GhostCoachOverlay({
   const tRef = useRef(1);
   const ghostBoxRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
   const facingRef = useRef<-1 | 1>(1);
+  // Sticky orientation — see FRONT_ENTER / SIDE_ENTER hysteresis in draw().
+  const orientationRef = useRef<Orientation | null>(null);
   const latestLandmarksRef = useRef<Landmark[] | null>(landmarks);
   // Sync the latest landmarks into the ref *before* the next paint so the rAF
   // tick always sees the freshest pose without re-creating the draw closure.
@@ -277,6 +324,28 @@ export function GhostCoachOverlay({
     const anchor = computeUserAnchor(lms, canvas.width, canvas.height, srcW, srcH);
     if (!anchor || anchor.box.h < 40) return;
 
+    // ── Orientation (front vs side) ────────────────────────────────────
+    // Front view is only available when the exercise has frontKeyframes.
+    // Otherwise we always render the side variant — no point in switching to
+    // a view we can't draw.
+    if (orientationRef.current === null) {
+      orientationRef.current = guideMeta.front
+        ? guideMeta.defaultOrientation
+        : "side";
+    }
+    if (guideMeta.front && anchor.shoulderSpread !== null) {
+      const cur = orientationRef.current;
+      if (cur === "side" && anchor.shoulderSpread > FRONT_ENTER) {
+        orientationRef.current = "front";
+      } else if (cur === "front" && anchor.shoulderSpread < SIDE_ENTER) {
+        orientationRef.current = "side";
+      }
+    }
+    const variant =
+      orientationRef.current === "front" && guideMeta.front
+        ? guideMeta.front
+        : guideMeta.side;
+
     // Smooth rep progress so the ghost reads as natural-paced motion, not
     // detection-quantum jumps.
     const tRaw = computeRepProgress(exerciseId, lms);
@@ -284,7 +353,7 @@ export function GhostCoachOverlay({
     const t = tRef.current;
 
     // ── Ghost target box (pixel space on this canvas) ──────────────────
-    const { extent } = guideMeta;
+    const { extent } = variant;
     const guideAspect = (extent.maxX - extent.minX) / Math.max(1, extent.maxY - extent.minY);
     const ghostH = anchor.box.h;
     const ghostW = ghostH * guideAspect;
@@ -323,7 +392,7 @@ export function GhostCoachOverlay({
     // ── Pose interpolation ────────────────────────────────────────────
     // t = 1 → top/start, t = 0 → bottom/depth. Keyframes go top → bottom, so
     // the ghost interpolation weight is (1 - t).
-    const pose = lerpFrame(guideMeta.topFrame, guideMeta.bottomFrame, 1 - t);
+    const pose = lerpFrame(variant.topFrame, variant.bottomFrame, 1 - t);
 
     // ── Draw skeleton inside ghost box ────────────────────────────────
     const extentW = extent.maxX - extent.minX;
@@ -331,13 +400,15 @@ export function GhostCoachOverlay({
     const projJx = (px: number) => smoothed.x + ((px - extent.minX) / extentW) * smoothed.w;
     const projJy = (py: number) => smoothed.y + ((py - extent.minY) / extentH) * smoothed.h;
 
-    // The keyframes face "right" in their viewbox. Mirror the ghost shape
+    // Side keyframes face "right" in their viewbox. Mirror the ghost shape
     // inside its bbox when the user's body is angled the other way, so the
     // coach faces the same direction as the person they're standing next to.
+    // Front keyframes are bilaterally symmetric — mirroring is a no-op there.
     // The canvas's outer CSS `scaleX(-1)` (when mirror=true) is independent —
     // it flips the entire overlay along with the video, keeping the ghost
     // visually consistent with the user's reflected view.
-    const flipShape = facingRef.current === -1;
+    const flipShape =
+      orientationRef.current === "side" && facingRef.current === -1;
     const flipX = (x: number) =>
       flipShape ? smoothed.x + smoothed.w - (x - smoothed.x) : x;
 
@@ -348,7 +419,7 @@ export function GhostCoachOverlay({
     ctx.strokeStyle = "rgba(56, 189, 248, 0.85)";
     ctx.lineWidth = Math.max(2, smoothed.h * 0.012);
     ctx.lineCap = "round";
-    for (const [from, to] of guideMeta.connections) {
+    for (const [from, to] of variant.connections) {
       const a = pose[from];
       const b = pose[to];
       if (!a || !b) continue;
@@ -362,7 +433,7 @@ export function GhostCoachOverlay({
     // Joints
     const baseR = Math.max(3, smoothed.h * 0.02);
     for (const [name, p] of Object.entries(pose)) {
-      const isHi = guideMeta.highlightJoints.has(name);
+      const isHi = variant.highlightJoints.has(name);
       const r = isHi ? baseR * 1.4 : baseR;
       const color = isHi ? "rgba(168, 85, 247, 0.95)" : "rgba(56, 189, 248, 0.95)";
       ctx.save();
@@ -405,10 +476,12 @@ export function GhostCoachOverlay({
   }, [draw]);
 
   useEffect(() => {
-    // Reset smoothing state when the exercise changes so the ghost doesn't
-    // "fly" from the previous exercise's pose into the new one.
+    // Reset smoothing + orientation when the exercise changes so the ghost
+    // doesn't "fly" from the previous exercise's pose into the new one and so
+    // the next exercise picks up its own recommended view.
     tRef.current = 1;
     ghostBoxRef.current = null;
+    orientationRef.current = null;
   }, [exerciseId]);
 
   useEffect(() => {
