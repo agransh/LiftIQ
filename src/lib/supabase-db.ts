@@ -78,7 +78,10 @@ export async function dbHasCompletedOnboarding(): Promise<boolean> {
 
 export async function dbGetSettings(): Promise<UserSettings> {
   const uid = await getUserId();
-  if (!uid) return { voiceEnabled: false, sensitivity: "medium", cameraFacing: "user" };
+  // coachingMode is a per-device UX preference (ghost vs minimal pill),
+  // intentionally NOT persisted server-side — it should follow the
+  // viewport, not the account.
+  if (!uid) return { voiceEnabled: false, sensitivity: "medium", cameraFacing: "user", coachingMode: "ghost" };
 
   const { data } = await getSupabase()
     .from("profiles")
@@ -86,12 +89,13 @@ export async function dbGetSettings(): Promise<UserSettings> {
     .eq("id", uid)
     .single();
 
-  if (!data) return { voiceEnabled: false, sensitivity: "medium", cameraFacing: "user" };
+  if (!data) return { voiceEnabled: false, sensitivity: "medium", cameraFacing: "user", coachingMode: "ghost" };
 
   return {
     voiceEnabled: data.voice_enabled,
     sensitivity: data.sensitivity,
     cameraFacing: data.camera_facing,
+    coachingMode: "ghost",
   };
 }
 

@@ -211,6 +211,7 @@ export function getSettings(): UserSettings {
     voiceEnabled: false,
     sensitivity: "medium",
     cameraFacing: "user",
+    coachingMode: "ghost",
   });
 }
 

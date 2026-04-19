@@ -8,10 +8,11 @@ import { getExercise } from "@/lib/exercises";
 import { Landmark, JointFeedback } from "@/types";
 import { validateStartPosition } from "@/lib/exercises/start-validators";
 import { getVoiceManager, classifyCuePriority } from "@/lib/ai/voice";
-import { Loader2, Camera, CameraOff, SwitchCamera, CheckCircle2, ScanLine } from "lucide-react";
+import { Loader2, Camera, CameraOff, SwitchCamera, CheckCircle2, ScanLine, Sparkles, Gauge } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { playCountdownTick, playSuccessChime, playStartGong, speakCue, speakCountdown } from "@/lib/audio-cues";
 import { GhostCoachOverlay } from "@/components/exercise-guide/ghost-coach-overlay";
+import { ReadinessPill } from "@/components/workout/readiness-pill";
 
 const FORM_CHECK_REQUIRED_FRAMES = 15;
 
@@ -43,6 +44,7 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
     settings,
     updateSettings,
     setPoseStatus,
+    setReadiness,
   } = useWorkoutStore();
 
   const [cameraFacing, setCameraFacing] = useState<"user" | "environment">(settings.cameraFacing || "environment");
@@ -67,7 +69,24 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
   const formCheckFramesRef = useRef(0);
   const lastHintRef = useRef("");
   const lastPlayedSecondRef = useRef(-1);
+  const coachModeDefaultedRef = useRef(false);
   const { setVoiceInfo } = useWorkoutStore();
+
+  // First time we mount on a mobile screen, swap the user into minimal
+  // coaching mode — the full ghost overlay isn't a great fit for phone
+  // viewports. Toggling stays sticky for the rest of the session.
+  useEffect(() => {
+    if (coachModeDefaultedRef.current) return;
+    coachModeDefaultedRef.current = true;
+    if (mobile && settings.coachingMode !== "minimal") {
+      updateSettings({ coachingMode: "minimal" });
+    }
+  }, [mobile, settings.coachingMode, updateSettings]);
+
+  const coachingMode = settings.coachingMode;
+  const handleToggleCoachMode = () => {
+    updateSettings({ coachingMode: coachingMode === "ghost" ? "minimal" : "ghost" });
+  };
 
   useEffect(() => {
     if (!isCountingDown || countdownSeconds <= 0) return;
@@ -265,6 +284,7 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
           formCheckFramesRef.current = Math.max(0, formCheckFramesRef.current - 3);
           setFormCheckProgress(Math.min(100, Math.round((formCheckFramesRef.current / FORM_CHECK_REQUIRED_FRAMES) * 100)));
           setFormCheckHint(framingHint);
+          setReadiness("framing", framingHint);
           if (framingHint !== lastHintRef.current) {
             lastHintRef.current = framingHint;
             speakCue(framingHint);
@@ -282,6 +302,7 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
           formCheckFramesRef.current++;
           const holdHint = "Hold your position...";
           setFormCheckHint(holdHint);
+          setReadiness("ready", "Hold this position");
           if (lastHintRef.current !== holdHint) {
             lastHintRef.current = holdHint;
             speakCue("Looking good! Hold that position.");
@@ -315,6 +336,7 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
           const detail = verdict.reasons[1];
           const hintText = detail ? `${primary} ${detail}` : primary;
           setFormCheckHint(hintText);
+          setReadiness(familyMismatch ? "wrong_pose" : "almost", primary);
           if (lastHintRef.current !== hintText) {
             lastHintRef.current = hintText;
             speakCue(primary);
@@ -349,8 +371,12 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
         lastHintRef.current = "family-mismatch";
         setCurrentCues(["Get back into the starting position to continue."]);
         speakCue("Get back into the starting position to continue.");
+        setReadiness("off_track", "Return to the starting position");
       } else if (!result.familyMismatch && lastHintRef.current === "family-mismatch") {
         lastHintRef.current = "";
+        setReadiness("active", "");
+      } else if (!result.familyMismatch) {
+        setReadiness("active", "");
       }
 
       if (settings.voiceEnabled) {
@@ -380,6 +406,7 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
       setCurrentCues,
       setCurrentIssues,
       addRepResult,
+      setReadiness,
       settings.voiceEnabled,
       computeJointColors,
     ]
@@ -546,8 +573,10 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
         style={{ transform: cameraFacing === "user" ? "scaleX(-1)" : "none" }}
       />
 
-      {/* Ghost coach overlay — live-synced to the user's pose & pace */}
-      {ghostCoachEnabled && selectedExercise && onDismissGhostCoach && (
+      {/* Ghost coach overlay — live-synced to the user's pose & pace.
+          Suppressed in minimal coaching mode (phones / users who prefer
+          the lightweight readiness pill). */}
+      {ghostCoachEnabled && coachingMode === "ghost" && selectedExercise && onDismissGhostCoach && (
         <GhostCoachOverlay
           exerciseId={selectedExercise}
           landmarks={liveLandmarks}
@@ -556,6 +585,18 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
           onDismiss={onDismissGhostCoach}
           canvasRefExternal={ghostCanvasRef}
         />
+      )}
+
+      {/* Minimal coaching mode — readiness pill at top center, no ghost. */}
+      {coachingMode === "minimal" && selectedExercise && (
+        <div
+          className={cn(
+            "absolute z-20 left-1/2 -translate-x-1/2 pointer-events-none",
+            mobile ? "top-3" : "top-4",
+          )}
+        >
+          <ReadinessPill />
+        </div>
       )}
 
       {/* Hidden compositor canvas — captured by MediaRecorder during recording */}
@@ -582,6 +623,21 @@ export function WebcamFeed({ mobile = false, ghostCoachEnabled, onDismissGhostCo
               </span>
             </button>
           )}
+          <button
+            onClick={handleToggleCoachMode}
+            className={cn(
+              "rounded-full bg-black/50 backdrop-blur-sm border border-white/10 flex items-center justify-center transition-all hover:bg-black/70 active:scale-95",
+              mobile ? "h-9 w-9" : "h-10 w-10"
+            )}
+            title={coachingMode === "ghost" ? "Switch to minimal coaching" : "Switch to ghost coach"}
+            aria-label={coachingMode === "ghost" ? "Switch to minimal coaching" : "Switch to ghost coach"}
+          >
+            {coachingMode === "ghost" ? (
+              <Sparkles className={cn("text-purple-300", mobile ? "h-4 w-4" : "h-5 w-5")} />
+            ) : (
+              <Gauge className={cn("text-cyan-300", mobile ? "h-4 w-4" : "h-5 w-5")} />
+            )}
+          </button>
           <button
             onClick={handleFlipCamera}
             className={cn(

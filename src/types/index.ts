@@ -167,6 +167,11 @@ export interface UserSettings {
   voiceEnabled: boolean;
   sensitivity: "low" | "medium" | "high";
   cameraFacing: "user" | "environment";
+  /**
+   * "ghost" renders the full skeleton coach overlay; "minimal" hides it and
+   * surfaces a compact readiness pill instead — better suited to phones.
+   */
+  coachingMode: "ghost" | "minimal";
 }
 
 export type PoseDetectionStatus = "loading" | "ready" | "detecting" | "error" | "no-camera";

@@ -40,6 +40,24 @@ interface WorkoutState {
   stopWorkout: () => void;
   setSessionWeight: (weight: number | undefined) => void;
 
+  /**
+   * Coarse readiness signal driven by the form-check + family-drift logic.
+   *  - "idle":        no exercise selected / camera off
+   *  - "framing":     person isn't fully in frame yet
+   *  - "wrong_pose":  in frame but the wrong pose family for the exercise
+   *  - "almost":      pose is close to valid but failing one constraint
+   *  - "ready":       valid start pose, holding for confirmation
+   *  - "active":      workout is running and pose family is correct
+   *  - "off_track":   workout is running but the user has drifted off
+   */
+  readiness: "idle" | "framing" | "wrong_pose" | "almost" | "ready" | "active" | "off_track";
+  /** Short message paired with the readiness state, used by the readiness pill. */
+  readinessMessage: string;
+  setReadiness: (
+    state: "idle" | "framing" | "wrong_pose" | "almost" | "ready" | "active" | "off_track",
+    message?: string,
+  ) => void;
+
   // Real-time metrics
   currentScore: number;
   setCurrentScore: (score: number) => void;
@@ -149,8 +167,17 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
     }),
   pauseWorkout: () => set({ isPaused: true }),
   resumeWorkout: () => set({ isPaused: false }),
-  stopWorkout: () => set({ isWorkoutActive: false, isPaused: false, isRecording: false, isCountingDown: false, countdownSeconds: 0, isFormChecking: false }),
+  stopWorkout: () => set({ isWorkoutActive: false, isPaused: false, isRecording: false, isCountingDown: false, countdownSeconds: 0, isFormChecking: false, readiness: "idle", readinessMessage: "" }),
   setSessionWeight: (weight) => set({ sessionWeight: weight }),
+
+  readiness: "idle",
+  readinessMessage: "",
+  setReadiness: (state, message) =>
+    set((prev) =>
+      prev.readiness === state && prev.readinessMessage === (message ?? "")
+        ? prev
+        : { readiness: state, readinessMessage: message ?? "" },
+    ),
 
   currentScore: 100,
   setCurrentScore: (score) => set({ currentScore: score }),
@@ -231,6 +258,7 @@ export const useWorkoutStore = create<WorkoutState>((set) => ({
     voiceEnabled: false,
     sensitivity: "medium",
     cameraFacing: "environment",
+    coachingMode: "ghost",
   },
   updateSettings: (newSettings) =>
     set((state) => ({ settings: { ...state.settings, ...newSettings } })),
