@@ -20,14 +20,12 @@ export default function CheckInPage() {
   const [state, setState] = useState<{
     rating: number;
     bpm: number | null;
-    useSimulated: boolean;
     signals: StressSignal[];
     level: number;
     confidence: number;
   }>({
     rating: 4,
     bpm: null,
-    useSimulated: false,
     signals: [],
     level: 0.4,
     confidence: 0.9,

@@ -18,7 +18,7 @@ export function MindHero({ greeting, subline }: Props) {
         >
           <div className="inline-flex items-center gap-2 rounded-full border border-[#6FFFE9]/25 bg-[#6FFFE9]/[0.06] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-[#6FFFE9]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#6FFFE9] shadow-[0_0_10px_rgba(111,255,233,0.9)]" />
-            Mind · Wellness Demo
+            Mind
           </div>
 
           <h1 className="mt-5 text-4xl sm:text-5xl lg:text-6xl font-black tracking-[-0.035em] leading-[1.05]">

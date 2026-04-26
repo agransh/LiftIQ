@@ -29,15 +29,6 @@ export function breathingPaceSignal(bpm: number): StressSignal {
 }
 
 /**
- * DEMO ONLY — simulated camera/PPG signal. Not a real measurement.
- * Returns a small random walk around a target value, useful for stage demos.
- */
-export function simulatedSignal(target = 0.5, jitter = 0.1): StressSignal {
-  const value = clamp01(target + (Math.random() - 0.5) * 2 * jitter);
-  return { source: "simulated", value, confidence: 0.25 };
-}
-
-/**
  * Estimate breaths per minute from an array of tap timestamps (ms since epoch).
  * Needs at least 2 taps; uses the last 6 intervals for stability.
  */

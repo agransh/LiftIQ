@@ -8,10 +8,11 @@ const META: Record<
   StressSignal["source"],
   { label: string; icon: typeof Activity; tag: string }
 > = {
-  self_report:  { label: "Self-report",     icon: ShieldCheck, tag: "Verified" },
+  self_report:  { label: "Self-report",     icon: ShieldCheck, tag: "Direct" },
   breathing:    { label: "Breathing pace",  icon: Activity,    tag: "Estimated" },
-  camera_ppg:   { label: "Camera signal",   icon: Mic,         tag: "Demo proxy" },
-  simulated:    { label: "Simulated",       icon: Sparkles,    tag: "Demo only" },
+  camera_ppg:   { label: "Camera estimate", icon: Mic,         tag: "On-device" },
+  /** Legacy sessions may still list this; no longer added in new check-ins. */
+  simulated:    { label: "Blended",         icon: Sparkles,    tag: "Heuristic" },
 };
 
 export function SignalStatusCard({ signals }: { signals: StressSignal[] }) {
@@ -66,7 +67,8 @@ export function SignalStatusCard({ signals }: { signals: StressSignal[] }) {
         })}
       </div>
       <p className="mt-4 text-[11px] leading-relaxed mind-text-secondary">
-        Demo proxies — LiftIQ does not measure brain activity or make medical assessments.
+        These inputs combine into one stress readout for routing and reflection. This is
+        not a medical device and does not measure brain activity or diagnose any condition.
       </p>
     </div>
   );

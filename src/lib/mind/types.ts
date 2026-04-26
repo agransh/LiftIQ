@@ -5,6 +5,7 @@ export type StressSignalSource =
   | "self_report"
   | "breathing"
   | "camera_ppg"
+  /** Legacy: older local sessions may still include this. No longer written by the app. */
   | "simulated";
 
 export interface StressSignal {

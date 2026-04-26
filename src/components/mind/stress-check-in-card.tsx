@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { CircleDot, Wind, Sparkles } from "lucide-react";
-import { breathingPaceSignal, estimateBpm, selfReportSignal, simulatedSignal } from "@/lib/mind/signal";
+import { CircleDot, Wind } from "lucide-react";
+import { breathingPaceSignal, estimateBpm, selfReportSignal } from "@/lib/mind/signal";
 import { combineSignals } from "@/lib/mind/intervention";
 import type { StressSignal } from "@/lib/mind/types";
 
@@ -11,7 +11,6 @@ interface Props {
   onChange: (state: {
     rating: number;
     bpm: number | null;
-    useSimulated: boolean;
     signals: StressSignal[];
     level: number;
     confidence: number;
@@ -30,7 +29,6 @@ export function StressCheckInCard({ onChange }: Props) {
   const [rating, setRating] = useState(4);
   const [taps, setTaps] = useState<number[]>([]);
   const [bpm, setBpm] = useState<number | null>(null);
-  const [useSimulated, setUseSimulated] = useState(false);
   const [mood, setMood] = useState<string | null>(null);
   const lastEmit = useRef("");
 
@@ -38,14 +36,13 @@ export function StressCheckInCard({ onChange }: Props) {
   useEffect(() => {
     const signals: StressSignal[] = [selfReportSignal(rating)];
     if (bpm !== null) signals.push(breathingPaceSignal(bpm));
-    if (useSimulated) signals.push(simulatedSignal(rating / 10, 0.08));
     const { level, confidence } = combineSignals(signals);
-    const key = `${rating}|${bpm ?? "_"}|${useSimulated}|${mood ?? "_"}`;
+    const key = `${rating}|${bpm ?? "_"}|${mood ?? "_"}`;
     if (key !== lastEmit.current) {
       lastEmit.current = key;
-      onChange({ rating, bpm, useSimulated, signals, level, confidence });
+      onChange({ rating, bpm, signals, level, confidence });
     }
-  }, [rating, bpm, useSimulated, mood, onChange]);
+  }, [rating, bpm, mood, onChange]);
 
   const handleTap = () => {
     const next = [...taps, Date.now()].slice(-7);
@@ -163,40 +160,6 @@ export function StressCheckInCard({ onChange }: Props) {
             Reset
           </button>
         </div>
-      </div>
-
-      {/* Demo simulated toggle */}
-      <div className="mind-card rounded-2xl p-5">
-        <label className="flex cursor-pointer items-center justify-between gap-4">
-          <div className="flex items-start gap-3">
-            <Sparkles className="mt-0.5 h-4 w-4 text-[#6FFFE9]" />
-            <div>
-              <div className="text-[13px] font-semibold mind-text-primary">
-                Add simulated camera signal
-              </div>
-              <div className="text-[11px] mind-text-secondary">
-                For demo only — not a real biosignal. Adds visual noise to the meter.
-              </div>
-            </div>
-          </div>
-          <span
-            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
-              useSimulated ? "bg-[#6FFFE9]/40" : "bg-white/[0.08]"
-            }`}
-          >
-            <input
-              type="checkbox"
-              checked={useSimulated}
-              onChange={(e) => setUseSimulated(e.target.checked)}
-              className="sr-only"
-            />
-            <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                useSimulated ? "translate-x-6" : "translate-x-1"
-              }`}
-            />
-          </span>
-        </label>
       </div>
 
       {/* Inline range styling — scoped via class */}

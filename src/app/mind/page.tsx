@@ -77,7 +77,7 @@ export default function MindDashboardPage() {
     <main>
       <MindHero
         greeting={greetingFor()}
-        subline="Lift IQ now trains your body and your mind. Take a moment to check in — we'll meet you wherever you are."
+        subline="Check in, breathe, and journal in one place. We’ll meet you where you are — no performance, no scoreboard."
       />
 
       <section className="mx-auto max-w-5xl px-6 lg:px-8 pb-12">
@@ -171,7 +171,7 @@ export default function MindDashboardPage() {
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-sm font-semibold mind-text-primary">Recent sessions</h3>
               <span className="text-[10px] uppercase tracking-[0.2em] mind-text-secondary">
-                Local
+                This device
               </span>
             </div>
             <div className="space-y-2">
@@ -220,7 +220,9 @@ export default function MindDashboardPage() {
         )}
 
         <p className="mt-12 text-center text-[11px] mind-text-secondary">
-          Demo mode · Signals are self-reported or estimated. LiftIQ does not measure brain activity and does not provide medical advice.
+          Stress levels here come from your check-in: what you report plus an optional
+          breath-rate estimate from tap timing. This is for wellness and reflection only —
+          not medical advice.
         </p>
       </section>
     </main>
