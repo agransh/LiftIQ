@@ -3,7 +3,7 @@ import { Navbar } from "@/components/layout/navbar";
 
 export default function MindLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen has-bottom-nav md:pb-0 mind-bg">
+    <div className="min-h-dvh has-bottom-nav md:pb-0 mind-bg">
       <Navbar />
       {/* Ambient teal/mint glow specific to the Mind module */}
       <div className="pointer-events-none fixed inset-0 -z-10">

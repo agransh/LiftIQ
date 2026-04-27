@@ -33,7 +33,7 @@ export default function BreathePage() {
   };
 
   return (
-    <main className="mx-auto max-w-3xl px-6 lg:px-8 py-10 sm:py-14">
+    <main className="mx-auto min-w-0 max-w-3xl px-4 pt-8 pb-2 sm:px-6 sm:pt-14 sm:pb-4 md:px-8 md:pb-6">
       <Link
         href="/mind"
         className="inline-flex items-center gap-1.5 text-[12px] mind-text-secondary hover:text-[#6FFFE9] transition-colors"

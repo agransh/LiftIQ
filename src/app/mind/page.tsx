@@ -3,14 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import {
-  ArrowRight,
-  BookOpen,
-  HeartPulse,
-  LifeBuoy,
-  Wind,
-} from "lucide-react";
+import { ArrowRight, BookOpen, HeartPulse, LifeBuoy, Wind } from "lucide-react";
 import { MindHero } from "@/components/mind/mind-hero";
+import { MindInsightsSection } from "@/components/mind/mind-insights-section";
 import { StressMeter } from "@/components/mind/stress-meter";
 import { getCheckIns, getMindSessions } from "@/lib/mind/storage";
 import { interventionCopy, levelLabel } from "@/lib/mind/intervention";
@@ -55,20 +50,34 @@ function greetingFor(date = new Date()): string {
 export default function MindDashboardPage() {
   const [data, setData] = useState<{
     latest: CheckIn | null;
+    checkIns: CheckIn[];
     sessions: MindSessionSummary[];
-  }>({ latest: null, sessions: [] });
+  }>({ latest: null, checkIns: [], sessions: [] });
 
-  // Read from localStorage on the client after mount.
   useEffect(() => {
-    queueMicrotask(() => {
+    const load = () => {
+      const checkIns = getCheckIns();
       setData({
-        latest: getCheckIns()[0] ?? null,
+        latest: checkIns[0] ?? null,
+        checkIns,
         sessions: getMindSessions().slice(0, 5),
       });
-    });
+    };
+    const onVis = () => {
+      if (document.visibilityState === "visible") load();
+    };
+    queueMicrotask(load);
+    window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("storage", load);
+    return () => {
+      window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("storage", load);
+    };
   }, []);
 
-  const { latest, sessions } = data;
+  const { latest, checkIns, sessions } = data;
 
   const intervention = latest ? interventionCopy(latest.intervention) : null;
   const tone = latest ? levelLabel(latest.level).tone : "calm";
@@ -80,7 +89,7 @@ export default function MindDashboardPage() {
         subline="Check in, breathe, and journal in one place. We’ll meet you where you are — no performance, no scoreboard."
       />
 
-      <section className="mx-auto max-w-5xl px-6 lg:px-8 pb-12">
+      <section className="mx-auto min-w-0 max-w-5xl px-4 sm:px-6 lg:px-8 pb-12">
         {/* Status / latest check-in */}
         <div className="grid gap-5 md:grid-cols-2">
           <motion.div
@@ -165,59 +174,7 @@ export default function MindDashboardPage() {
           </motion.div>
         </div>
 
-        {/* Recent sessions */}
-        {sessions.length > 0 && (
-          <div className="mt-10">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-sm font-semibold mind-text-primary">Recent sessions</h3>
-              <span className="text-[10px] uppercase tracking-[0.2em] mind-text-secondary">
-                This device
-              </span>
-            </div>
-            <div className="space-y-2">
-              {sessions.map((s) => (
-                <div
-                  key={s.id}
-                  className="mind-card flex items-center justify-between rounded-xl px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-[#6FFFE9]/10 border border-[#6FFFE9]/20">
-                      {s.intervention === "breathing" ? (
-                        <Wind className="h-4 w-4 text-[#6FFFE9]" />
-                      ) : s.intervention === "reflection" ? (
-                        <BookOpen className="h-4 w-4 text-[#6FFFE9]" />
-                      ) : (
-                        <LifeBuoy className="h-4 w-4 text-[#6FFFE9]" />
-                      )}
-                    </span>
-                    <div>
-                      <div className="text-[13px] font-medium mind-text-primary capitalize">
-                        {s.intervention}
-                      </div>
-                      <div className="text-[11px] mind-text-secondary">
-                        {new Date(s.createdAt).toLocaleString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-[11px] mind-text-secondary tabular-nums">
-                    {Math.round(s.startLevel * 100)}
-                    {typeof s.endLevel === "number" && (
-                      <>
-                        {" → "}
-                        <span className="text-[#6FFFE9]">{Math.round(s.endLevel * 100)}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+        <MindInsightsSection checkIns={checkIns} sessions={sessions} />
 
         <p className="mt-12 text-center text-[11px] mind-text-secondary">
           Stress levels here come from your check-in: what you report plus an optional

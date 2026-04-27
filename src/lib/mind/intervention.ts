@@ -12,6 +12,18 @@ export function getIntervention(level: number): InterventionKind {
   return "support";
 }
 
+/** Human-readable name for session rows and UI. */
+export function interventionDisplayName(kind: InterventionKind): string {
+  switch (kind) {
+    case "reflection":
+      return "Journal";
+    case "breathing":
+      return "Breathing";
+    case "support":
+      return "Support";
+  }
+}
+
 /** Confidence-weighted mean of multiple stress signals. */
 export function combineSignals(signals: StressSignal[]): {
   level: number;
